@@ -3,6 +3,12 @@ project(HtmlParser)
 
 set(CMAKE_CXX_STANDARD 20)
 
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MD")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+endif()
+
 include_directories(include)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_library(HtmlParser STATIC ${SOURCES})
@@ -22,9 +28,11 @@ if(HTMLPARSER_BUILD_TESTS)
     FetchContent_MakeAvailable(googletest)
     add_subdirectory(tests)
 endif()
+
 if(HTMLPARSER_BUILD_BENCHMARKS)
     add_subdirectory(benchmarks)
 endif()
+
 if(HTMLPARSER_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
