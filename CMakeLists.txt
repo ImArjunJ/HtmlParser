@@ -5,15 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 
 include_directories(include)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
-add_library(HtmlParser SHARED ${SOURCES})
-
-if(MSVC)
-    if(POLICY CMP0091)
-    cmake_policy(SET CMP0091 NEW) 
-    endif()
-    set_property(TARGET HtmlParser PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    set_target_properties(HtmlParser PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
-endif()
+add_library(HtmlParser STATIC ${SOURCES})
 
 option(HTMLPARSER_BUILD_TESTS "Build tests" ON)
 option(HTMLPARSER_BUILD_BENCHMARKS "Build benchmarks" ON)
@@ -30,7 +22,6 @@ if(HTMLPARSER_BUILD_TESTS)
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
     add_subdirectory(tests)
-    
 endif()
 
 if(HTMLPARSER_BUILD_BENCHMARKS)
