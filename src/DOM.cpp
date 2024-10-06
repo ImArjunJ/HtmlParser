@@ -2,12 +2,12 @@
 #include <HtmlParser/Query.hpp>
 #include <functional>
 #include <sstream>
-#include <unordered_set>
+
+#include "Utilities.hpp"
+
 
 namespace HtmlParser
 {
-    const std::unordered_set<std::string> SelfClosingTags = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"};
-
     std::string HtmlParser::DOM::ToHtml() const
     {
         std::function<std::string(const std::shared_ptr<Node>&)> SerializeNode = [&](const std::shared_ptr<Node>& TargetNode) -> std::string
@@ -25,7 +25,7 @@ namespace HtmlParser
             }
 
             // Check if the tag is a known self-closing tag
-            if (SelfClosingTags.find(TargetNode->Tag) != SelfClosingTags.end())
+            if (Utils::IsSelfClosingTag(TargetNode->Tag))
             {
                 HtmlStream << " />"; // Self-closing tag
             }
