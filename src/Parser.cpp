@@ -16,7 +16,6 @@ namespace HtmlParser
         std::string CurrentText = "";
         bool InsideTag = false;
         bool IsClosingTag = false;
-        bool IsSelfClosingTag = false;
 
         for (size_t i = 0; i < RawHtml.size(); ++i)
         {
@@ -27,14 +26,12 @@ namespace HtmlParser
             {
                 if (!CurrentText.empty())
                 {
-                    // Add collected text to the last node
                     NodeStack.top()->Text += CurrentText;
                     CurrentText.clear();
                 }
 
                 InsideTag = true;
                 IsClosingTag = false;
-                IsSelfClosingTag = false;
                 CurrentTag.clear();
             }
             // End of a tag
@@ -44,7 +41,7 @@ namespace HtmlParser
 
                 if (IsClosingTag)
                 {
-                    // Handle closing tag
+                    // Closing tag: pop the stack if it matches
                     if (!NodeStack.empty() && NodeStack.top()->Tag == CurrentTag)
                     {
                         NodeStack.pop();
@@ -56,54 +53,29 @@ namespace HtmlParser
                 }
                 else
                 {
-                    // Handle opening tag
+                    // Opening tag: create a new node
                     auto CurrentNode = std::make_shared<Node>();
                     CurrentNode->Tag = CurrentTag;
-
-                    // Check for self-closing tags (e.g., <br />, <img />, etc.)
-                    if (IsSelfClosingTag)
-                    {
-                        NodeStack.top()->Children.push_back(CurrentNode);
-                    }
-                    else
-                    {
-                        NodeStack.top()->Children.push_back(CurrentNode);
-                        NodeStack.push(CurrentNode);
-                    }
+                    NodeStack.top()->Children.push_back(CurrentNode);
+                    NodeStack.push(CurrentNode);
                 }
             }
+
             // Check for closing tag marker
             else if (InsideTag && c == '/')
             {
                 IsClosingTag = true;
             }
-            // Check for self-closing tag marker (e.g., <tag />)
-            else if (InsideTag && c == ' ')
-            {
-                IsSelfClosingTag = true; // Assume it might be a self-closing tag
-            }
             // Inside a tag, reading the tag name
             else if (InsideTag)
             {
-                if (CurrentTag.empty() && c == '/')
-                {
-                    IsClosingTag = true;
-                }
-                else if (!IsSelfClosingTag) // Ignore any attributes or unnecessary spaces
-                {
-                    CurrentTag += c;
-                }
+                CurrentTag += c;
             }
+            // Outside a tag, reading text content
             else
             {
                 CurrentText += c;
             }
-        }
-
-        // Final text check
-        if (!CurrentText.empty())
-        {
-            NodeStack.top()->Text += CurrentText;
         }
 
         if (IsStrict && NodeStack.size() > 1)
