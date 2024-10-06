@@ -86,7 +86,6 @@ namespace HtmlParser
                     NodeStack.top()->Children.push_back(CurrentNode);
                     if (!Utils::IsSelfClosingTag(CurrentTag))
                     {
-                        CurrentNode->Text = Utils::Trim(CurrentNode->Text);
                         NodeStack.push(CurrentNode);
                     }
                 }
@@ -132,9 +131,10 @@ namespace HtmlParser
         return DOM(RootNode->Children.empty() ? RootNode : RootNode->Children[0]);
     }
 
+    // Updated ParseAttributes function
     std::unordered_map<std::string, std::string> Parser::ParseAttributes(const std::string& Input)
     {
-        std::unordered_map<std::string, std::string> Attributes = {};
+        std::unordered_map<std::string, std::string> Attributes;
         std::istringstream Stream(Input);
         std::string Token;
         while (Stream >> Token)
@@ -146,11 +146,17 @@ namespace HtmlParser
                 std::string Value = Token.substr(EqualPos + 1);
 
                 // Remove quotes around the value if they exist
-                if (!Value.empty() && Value.front() == '"')
+                if (!Value.empty() && (Value.front() == '"' || Value.front() == '\''))
                 {
                     Value = Value.substr(1, Value.size() - 2); // Strip leading and trailing quotes
                 }
+
                 Attributes[Utils::Trim(Key)] = Utils::Trim(Value);
+            }
+            else
+            {
+                // Handle boolean attributes (e.g., "checked", "disabled")
+                Attributes[Utils::Trim(Token)] = "";
             }
         }
         return Attributes;
