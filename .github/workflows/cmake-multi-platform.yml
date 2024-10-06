@@ -46,7 +46,7 @@ jobs:
       - name: Configure CMake (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          "C:\Program Files\CMake\bin\cmake.EXE" \
+          &"C:/Program Files/CMake/bin/cmake.EXE" \
           -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE --no-warn-unused-cli \
           -S${{ github.workspace }} \
           -B${{ steps.strings.outputs.build-output-dir }} \
@@ -56,7 +56,7 @@ jobs:
       - name: Build (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          "C:\Program Files\CMake\bin\cmake.EXE" --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+          &"C:/Program Files/CMake/bin/cmake.EXE" --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
       # Linux-specific build configuration
       - name: Configure CMake (Linux)
