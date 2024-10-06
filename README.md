@@ -37,7 +37,7 @@ if (!Paragraph.empty())
 auto Body = DOM.Root()->Find("body");
 if (Body)
 {
-    auto Children = body->GetChildren();
+    auto Children = Body->GetChildren();
     for (const auto& Child : Children)
     {
         std::cout << "Child tag: " << Child->Tag << std::endl;  // Outputs: Child tag: p
@@ -50,7 +50,7 @@ if (Body)
 To enable strict mode during parsing, use:
 
 ```c++
-parser.set_options(true); // Enables strict mode
+Parser.SetStrict(true); // Enables strict mode
 ```
 
 # Contributing
