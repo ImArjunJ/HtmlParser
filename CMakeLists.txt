@@ -4,14 +4,17 @@ project(HtmlParser)
 set(CMAKE_CXX_STANDARD 20)
 
 if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MD")
+    message("MSVC")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
 else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 endif()
 
+
 include_directories(include)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
-add_library(HtmlParser STATIC ${SOURCES})
+add_library(HtmlParser SHARED ${SOURCES})
 
 option(HTMLPARSER_BUILD_TESTS "Build tests" ON)
 option(HTMLPARSER_BUILD_BENCHMARKS "Build benchmarks" ON)
@@ -26,6 +29,7 @@ if(HTMLPARSER_BUILD_TESTS)
         DOWNLOAD_EXTRACT_TIMESTAMP true
     )
     FetchContent_MakeAvailable(googletest)
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     add_subdirectory(tests)
 endif()
 
