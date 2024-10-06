@@ -3,18 +3,18 @@ project(HtmlParser)
 
 set(CMAKE_CXX_STANDARD 20)
 
-if(MSVC)
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /MDd")
-    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MD")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-endif()
-
-
 include_directories(include)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_library(HtmlParser SHARED ${SOURCES})
+
+if(MSVC)
+    set_property(TARGET HtmlParser PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+endif()
 set_target_properties(HtmlParser PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+set_property(TARGET HtmlParser PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
 
 option(HTMLPARSER_BUILD_TESTS "Build tests" ON)
 option(HTMLPARSER_BUILD_BENCHMARKS "Build benchmarks" ON)
