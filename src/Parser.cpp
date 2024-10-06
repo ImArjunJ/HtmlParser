@@ -27,7 +27,6 @@ namespace HtmlParser
         {
             char c = RawHtml[i];
 
-            // Start of a tag
             if (c == '<')
             {
                 if (i + 3 < RawHtml.size() && RawHtml.substr(i, 4) == "<!--")
@@ -76,7 +75,6 @@ namespace HtmlParser
                     auto CurrentNode = std::make_shared<Node>();
                     CurrentNode->Tag = CurrentTag;
 
-                    // Parse attributes if any
                     if (!AttributeBuffer.empty())
                     {
                         CurrentNode->Attributes = ParseAttributes(AttributeBuffer);
@@ -90,12 +88,10 @@ namespace HtmlParser
                     }
                 }
             }
-            // Handle closing tag marker
             else if (InsideTag && c == '/')
             {
                 IsClosingTag = true;
             }
-            // Inside a tag: reading the tag name or attributes
             else if (InsideTag)
             {
                 if (std::isspace(c) && !CurrentTag.empty())
@@ -104,14 +100,13 @@ namespace HtmlParser
                 }
                 else if (InsideAttributeSection)
                 {
-                    AttributeBuffer += c; // Collecting attributes
+                    AttributeBuffer += c;
                 }
                 else
                 {
                     CurrentTag += c; // Collecting tag name
                 }
             }
-            // Outside a tag, reading text content
             else
             {
                 CurrentText += c;
@@ -131,7 +126,6 @@ namespace HtmlParser
         return DOM(RootNode->Children.empty() ? RootNode : RootNode->Children[0]);
     }
 
-    // Updated ParseAttributes function
     std::unordered_map<std::string, std::string> Parser::ParseAttributes(const std::string& Input)
     {
         std::unordered_map<std::string, std::string> Attributes;
