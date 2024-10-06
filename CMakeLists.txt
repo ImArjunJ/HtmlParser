@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 include_directories(include)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_library(HtmlParser STATIC ${SOURCES})
+target_include_directories(HtmlParser PUBLIC include)
 
 option(HTMLPARSER_BUILD_TESTS "Build tests" ON)
 option(HTMLPARSER_BUILD_BENCHMARKS "Build benchmarks" ON)
