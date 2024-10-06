@@ -15,6 +15,9 @@ namespace HtmlParser
         void SetStrict(bool Strict);
 
     private:
+        std::unordered_map<std::string, std::string> ParseAttributes(const std::string& Input);
+
+    private:
         bool IsStrict = false;
     };
 } // namespace HtmlParser
