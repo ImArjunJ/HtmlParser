@@ -82,9 +82,11 @@ namespace HtmlParser
                         CurrentNode->Attributes = ParseAttributes(AttributeBuffer);
                     }
 
+                    CurrentNode->Text = Utils::Trim(CurrentNode->Text);
                     NodeStack.top()->Children.push_back(CurrentNode);
                     if (!Utils::IsSelfClosingTag(CurrentTag))
                     {
+                        CurrentNode->Text = Utils::Trim(CurrentNode->Text);
                         NodeStack.push(CurrentNode);
                     }
                 }
