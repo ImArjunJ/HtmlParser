@@ -1,7 +1,6 @@
 #include <HtmlParser/Parser.hpp>
 #include <iostream>
 
-
 int main()
 {
     HtmlParser::Parser Parser;
