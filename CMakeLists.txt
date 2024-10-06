@@ -5,7 +5,12 @@ set(CMAKE_CXX_STANDARD 20)
 
 include_directories(include)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
-add_library(HtmlParser STATIC ${SOURCES})
+add_library(HtmlParser SHARED ${SOURCES})
+
+if(POLICY CMP0091)
+  cmake_policy(SET CMP0091 NEW) 
+endif()
+set_property(TARGET HtmlParser PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 option(HTMLPARSER_BUILD_TESTS "Build tests" ON)
 option(HTMLPARSER_BUILD_BENCHMARKS "Build benchmarks" ON)
