@@ -37,7 +37,7 @@ namespace HtmlParser
 
     void DOM::GetElementsByTagNameImpl(const std::shared_ptr<Node>& ElementNode, const std::string& TagName, std::vector<std::shared_ptr<Node>>& Elements) const
     {
-        if (ElementNode->NodeType == NodeType::Element && Utils::ToLower(ElementNode->Tag) == Utils::ToLower(TagName))
+        if (ElementNode->Type == NodeType::Element && Utils::ToLower(ElementNode->Tag) == Utils::ToLower(TagName))
         {
             Elements.push_back(ElementNode);
         }
@@ -56,7 +56,7 @@ namespace HtmlParser
 
     void DOM::GetElementsByClassNameImpl(const std::shared_ptr<Node>& ElementNode, const std::string& ClassName, std::vector<std::shared_ptr<Node>>& Elements) const
     {
-        if (ElementNode->NodeType == NodeType::Element && ElementNode->HasClass(ClassName))
+        if (ElementNode->Type == NodeType::Element && ElementNode->HasClass(ClassName))
         {
             Elements.push_back(ElementNode);
         }
@@ -78,7 +78,7 @@ namespace HtmlParser
         if (Result)
             return;
 
-        if (ElementNode->NodeType == NodeType::Element)
+        if (ElementNode->Type == NodeType::Element)
         {
             auto it = ElementNode->Attributes.find("id");
             if (it != ElementNode->Attributes.end() && it->second == Id)
@@ -109,7 +109,7 @@ namespace HtmlParser
     {
         static const std::unordered_set<std::string> VoidElements = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"};
 
-        switch (ElementNode->NodeType)
+        switch (ElementNode->Type)
         {
         case NodeType::Element:
         {

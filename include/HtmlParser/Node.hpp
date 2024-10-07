@@ -18,9 +18,9 @@ namespace HtmlParser
     class Node : public std::enable_shared_from_this<Node>
     {
     public:
-        Node(NodeType Type);
+        Node(NodeType _Type);
 
-        HtmlParser::NodeType NodeType;
+        NodeType Type;
         std::string Tag;
         std::string Text;
         std::unordered_map<std::string, std::string> Attributes;

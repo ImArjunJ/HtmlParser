@@ -4,7 +4,7 @@
 
 namespace HtmlParser
 {
-    Node::Node(enum NodeType Type) : NodeType(Type)
+    Node::Node(enum NodeType _Type) : Type(_Type)
     {
     }
 
@@ -22,7 +22,7 @@ namespace HtmlParser
 
     std::string Node::GetTextContent() const
     {
-        if (NodeType == NodeType::Text)
+        if (Type == NodeType::Text)
         {
             return Text;
         }
