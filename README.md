@@ -12,7 +12,6 @@ A cross-platform C++ HTML parser library inspired by BeautifulSoup, featuring DO
   - [Handling Nested Elements](#handling-nested-elements)
   - [Using Query Selectors](#using-query-selectors)
 - [Contributing](#contributing)
-- [License](#license)
 
 ## Installation
 
