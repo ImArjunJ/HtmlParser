@@ -1,8 +1,4 @@
-set(EXAMPLES
-    ParseExample.cpp
-    QueryExample.cpp
-    RootsExample.cpp
-)
+file(GLOB EXAMPLES "*.cpp")
 
 foreach(EXAMPLE_FILE ${EXAMPLES})
     get_filename_component(EXAMPLE_NAME ${EXAMPLE_FILE} NAME_WE)

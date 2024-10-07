@@ -1,8 +1,4 @@
-set(BENCHMARKS
-    ParseBenchmark.cpp
-    DOMBenchmark.cpp
-    # more here
-)
+file(GLOB BENCHMARKS "*.cpp")
 
 foreach(BENCHMARK_FILE ${BENCHMARKS})
     get_filename_component(BENCHMARK_NAME ${BENCHMARK_FILE} NAME_WE)

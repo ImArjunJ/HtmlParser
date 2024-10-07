@@ -2,22 +2,54 @@
 #include <string>
 
 #include "DOM.hpp"
+#include "Tokenizer.hpp"
 
 namespace HtmlParser
 {
     class Parser
     {
     public:
-        // Parse HTML string and return the DOM
-        DOM Parse(const std::string& RawHtml);
+        Parser();
 
-        // Set strict mode which is used to throw exceptions when the HTML is not well-formed
-        void SetStrict(bool Strict);
+        DOM Parse(const std::string& Input);
+
+        void SetStrict(bool Strict)
+        {
+            IsStrict = Strict;
+        }
 
     private:
-        std::unordered_map<std::string, std::string> ParseAttributes(const std::string& Input);
+        void InsertionModeInitial(const Token& Token);
+        void InsertionModeBeforeHtml(const Token& Token);
+        void InsertionModeBeforeHead(const Token& Token);
+        void InsertionModeInHead(const Token& Token);
+        void InsertionModeAfterHead(const Token& Token);
+        void InsertionModeInBody(const Token& Token);
 
-    private:
+        void HandleError(const std::string& Message);
+
+        std::shared_ptr<Node> CurrentNode();
+
+        void InsertElement(const Token& Token);
+        void InsertCharacter(const Token& Token);
+        void CloseElement(const Token& Token);
+
+        std::shared_ptr<Node> Document;
+        std::vector<std::shared_ptr<Node>> OpenElements;
+
+        enum class InsertionMode
+        {
+            Initial,
+            BeforeHtml,
+            BeforeHead,
+            InHead,
+            AfterHead,
+            InBody,
+            Text,
+        };
+
+        InsertionMode InsertionMode;
+
         bool IsStrict = false;
     };
 } // namespace HtmlParser

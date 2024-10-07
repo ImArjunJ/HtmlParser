@@ -1,38 +1,36 @@
 #pragma once
 #include <memory>
-#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace HtmlParser
 {
-    struct Node
+    enum class NodeType
     {
+        Document,
+        Element,
+        Text,
+        Comment,
+        Doctype,
+    };
+
+    class Node : public std::enable_shared_from_this<Node>
+    {
+    public:
+        Node(NodeType Type);
+
+        NodeType NodeType;
         std::string Tag;
+        std::string Text;
         std::unordered_map<std::string, std::string> Attributes;
         std::vector<std::shared_ptr<Node>> Children;
-        std::string Text;
+        std::weak_ptr<Node> Parent;
 
-        // Return the tag name of the node
-        std::string GetTag() const
-        {
-            return Tag;
-        }
-
-        // Return an attribute by name (optional, in case attribute is missing)
-        std::optional<std::string> GetAttribute(const std::string& Name) const;
-
-        // Return all children of this node
-        std::vector<std::shared_ptr<Node>> GetChildren() const
-        {
-            return Children;
-        }
-
-        // Find the first child node matching the given CSS selector using Query
-        std::shared_ptr<Node> Find(const std::string& Selector) const;
-
-        // Find all child nodes matching the given CSS selector using Query
-        std::vector<std::shared_ptr<Node>> FindAll(const std::string& Selector) const;
+        void AppendChild(const std::shared_ptr<Node>& Child);
+        std::string GetAttribute(const std::string& Name) const;
+        void SetAttribute(const std::string& Name, const std::string& Value);
+        bool HasClass(const std::string& ClassName) const;
+        std::string GetTextContent() const;
     };
 } // namespace HtmlParser
