@@ -1,4 +1,4 @@
-# HtmlParser Library
+# HtmlParser
 
 A cross-platform C++ HTML parser library inspired by BeautifulSoup, featuring DOM manipulation and querying support.
 
