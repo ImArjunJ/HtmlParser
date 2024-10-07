@@ -1,37 +1,62 @@
 #include <HtmlParser/Node.hpp>
 #include <HtmlParser/Query.hpp>
-
+#include <sstream>
 
 namespace HtmlParser
 {
-    // Find an attribute by name
-    std::optional<std::string> Node::GetAttribute(const std::string& Name) const
+    Node::Node(enum NodeType Type) : NodeType(Type)
+    {
+    }
+
+    void Node::AppendChild(const std::shared_ptr<Node>& Child)
+    {
+        Child->Parent = shared_from_this();
+        Children.push_back(Child);
+    }
+
+    std::string Node::GetAttribute(const std::string& Name) const
     {
         auto it = Attributes.find(Name);
+        return it != Attributes.end() ? it->second : "";
+    }
+
+    std::string Node::GetTextContent() const
+    {
+        if (NodeType == NodeType::Text)
+        {
+            return Text;
+        }
+        else
+        {
+            std::string Result;
+            for (const auto& child : Children)
+            {
+                Result += child->GetTextContent();
+            }
+            return Result;
+        }
+    }
+
+    void Node::SetAttribute(const std::string& Name, const std::string& Value)
+    {
+        Attributes[Name] = Value;
+    }
+
+    bool Node::HasClass(const std::string& ClassName) const
+    {
+        auto it = Attributes.find("class");
         if (it != Attributes.end())
         {
-            return it->second;
+            std::istringstream Stream(it->second);
+            std::string Token;
+            while (Stream >> Token)
+            {
+                if (Token == ClassName)
+                {
+                    return true;
+                }
+            }
         }
-        return std::nullopt;
-    }
-
-    // Find the first node matching a CSS selector using the Query class
-    std::shared_ptr<Node> Node::Find(const std::string& Selector) const
-    {
-        // Create a temporary DOM with this node as the root
-        DOM DOM(std::make_shared<Node>(*this));
-
-        Query Query;
-        return Query.Find(DOM, Selector);
-    }
-
-    // Find all nodes matching a CSS selector using the Query class
-    std::vector<std::shared_ptr<Node>> Node::FindAll(const std::string& Selector) const
-    {
-        // Create a temporary DOM with this node as the root
-        DOM DOM(std::make_shared<Node>(*this));
-
-        Query Query;
-        return Query.FindAll(DOM, Selector);
+        return false;
     }
 } // namespace HtmlParser

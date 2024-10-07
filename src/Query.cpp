@@ -1,76 +1,205 @@
-#include <HtmlParser/Node.hpp>
 #include <HtmlParser/Query.hpp>
-#include <regex>
+
+#include "Utilities.hpp"
 
 namespace HtmlParser
 {
-    // Find the first element that matches the given CSS selector
-    std::shared_ptr<Node> Query::Find(const DOM& DOM, const std::string& Selector)
+    Query::Query(const std::shared_ptr<Node>& QueryRoot) : Root(QueryRoot)
     {
-        std::vector<std::shared_ptr<Node>> Elements;
-        for (const auto& RootNode : DOM.GetRoots())
+    }
+
+    std::vector<std::shared_ptr<Node>> Query::Select(const std::string& Selector) const
+    {
+        std::vector<std::string> Tokens = TokenizeSelector(Selector);
+        std::vector<std::shared_ptr<Node>> Results;
+        SelectImpl(Root, Tokens, 0, Results);
+        return Results;
+    }
+
+    std::shared_ptr<Node> Query::SelectFirst(const std::string& Selector) const
+    {
+        std::vector<std::string> Tokens = TokenizeSelector(Selector);
+        std::vector<std::shared_ptr<Node>> Results;
+        SelectImpl(Root, Tokens, 0, Results);
+        if (!Results.empty())
         {
-            this->SearchDOM(RootNode, Selector, Elements, true);
-            if (!Elements.empty())
-                return Elements.front();
+            return Results[0];
         }
         return nullptr;
     }
 
-    // Find all elements that match the given CSS selector
-    std::vector<std::shared_ptr<Node>> Query::FindAll(const DOM& DOM, const std::string& Selector)
+    std::vector<std::string> Query::TokenizeSelector(const std::string& Selector) const
     {
-        std::vector<std::shared_ptr<Node>> Elements;
-        for (const auto& root : DOM.GetRoots())
+        std::vector<std::string> Tokens;
+        std::string Token;
+        for (size_t i = 0; i < Selector.size(); ++i)
         {
-            this->SearchDOM(root, Selector, Elements, false);
+            char c = Selector[i];
+            if (isspace(c))
+            {
+                if (!Token.empty())
+                {
+                    Tokens.push_back(Token);
+                    Token.clear();
+                }
+                Tokens.push_back(" ");
+            }
+            else if (c == '>' || c == '+' || c == '~')
+            {
+                if (!Token.empty())
+                {
+                    Tokens.push_back(Token);
+                    Token.clear();
+                }
+                Tokens.emplace_back(1, c);
+            }
+            else
+            {
+                Token += c;
+            }
         }
-        return Elements;
-    }
-
-    // Recursive function to search the DOM for matching nodes
-    void Query::SearchDOM(const std::shared_ptr<Node>& RootNode, const std::string& Selector, std::vector<std::shared_ptr<Node>>& Nodes, bool FindFirst)
-    {
-        // Check if the current node matches the selector
-        if (MatchTagName(RootNode, Selector) || MatchId(RootNode, Selector) || MatchClass(RootNode, Selector))
+        if (!Token.empty())
         {
-            Nodes.push_back(RootNode);
-            if (FindFirst)
-                return;
+            Tokens.push_back(Token);
         }
+        return Tokens;
+    }
 
-        // Recursively search through child nodes
-        for (const auto& ChildNode : RootNode->GetChildren())
+    void Query::SelectImpl(const std::shared_ptr<Node>& ElementNode, const std::vector<std::string>& Tokens, size_t Index, std::vector<std::shared_ptr<Node>>& Results) const
+    {
+        if (Index >= Tokens.size())
+            return;
+
+        if (Tokens[Index] == " ")
         {
-            SearchDOM(ChildNode, Selector, Nodes, FindFirst);
-            if (FindFirst && !Nodes.empty())
-                return;
+            // Descendant combinator
+            for (const auto& child : ElementNode->Children)
+            {
+                SelectImpl(child, Tokens, Index + 1, Results);
+                SelectImpl(child, Tokens, Index, Results);
+            }
+        }
+        else
+        {
+            if (MatchSelector(ElementNode, Tokens[Index]))
+            {
+                if (Index == Tokens.size() - 1)
+                {
+                    Results.push_back(ElementNode);
+                }
+                else
+                {
+                    for (const auto& Child : ElementNode->Children)
+                    {
+                        SelectImpl(Child, Tokens, Index + 1, Results);
+                    }
+                }
+            }
+            else
+            {
+                for (const auto& Child : ElementNode->Children)
+                {
+                    SelectImpl(Child, Tokens, Index, Results);
+                }
+            }
         }
     }
 
-    // Utility function to match by tag name
-    bool Query::MatchTagName(const std::shared_ptr<Node>& RootNode, const std::string& TagName)
+    bool Query::MatchSelector(const std::shared_ptr<Node>& ElementNode, const std::string& Token) const
     {
-        return RootNode->GetTag() == TagName;
-    }
-
-    // Utility function to match by ID
-    bool Query::MatchId(const std::shared_ptr<Node>& RootNode, const std::string& Id)
-    {
-        auto Attribute = RootNode->GetAttribute("id");
-        return Attribute.has_value() && Attribute.value() == Id;
-    }
-
-    // Utility function to match by class name
-    bool Query::MatchClass(const std::shared_ptr<Node>& RootNode, const std::string& ClassName)
-    {
-        auto Attribute = RootNode->GetAttribute("class");
-        if (!Attribute.has_value())
+        if (ElementNode->NodeType != NodeType::Element)
             return false;
 
-        // Check if the class name is present in the class attribute (multiple classes case)
-        std::string ClassList = Attribute.value();
-        std::regex ClassRegex("\\b" + ClassName + "\\b");
-        return std::regex_search(ClassList, ClassRegex);
+        size_t Position = 0;
+        bool IsMatching = true;
+
+        while (Position < Token.size() && IsMatching)
+        {
+            if (Token[Position] == '.')
+            {
+                // Class selector
+                ++Position;
+                size_t Start = Position;
+                while (Position < Token.size() && Token[Position] != '.' && Token[Position] != '#' && Token[Position] != '[')
+                {
+                    ++Position;
+                }
+                std::string ClassName = Token.substr(Start, Position - Start);
+                if (!ElementNode->HasClass(ClassName))
+                {
+                    IsMatching = false;
+                }
+            }
+            else if (Token[Position] == '#')
+            {
+                // ID selector
+                ++Position;
+                size_t Start = Position;
+                while (Position < Token.size() && Token[Position] != '.' && Token[Position] != '#' && Token[Position] != '[')
+                {
+                    ++Position;
+                }
+                std::string Id = Token.substr(Start, Position - Start);
+                if (ElementNode->GetAttribute("id") != Id)
+                {
+                    IsMatching = false;
+                }
+            }
+            else if (Token[Position] == '[')
+            {
+                // Attribute selector
+                size_t Start = Position + 1;
+                size_t End = Token.find(']', Start);
+                if (End == std::string::npos)
+                {
+                    IsMatching = false;
+                    break;
+                }
+                std::string AttrSelector = Token.substr(Start, End - Start);
+                Position = End + 1;
+
+                size_t EqualPos = AttrSelector.find('=');
+                if (EqualPos != std::string::npos)
+                {
+                    std::string AttrName = AttrSelector.substr(0, EqualPos);
+                    std::string AttrValue = AttrSelector.substr(EqualPos + 1);
+
+                    // Remove quotes if present
+                    if (!AttrValue.empty() && (AttrValue.front() == '"' || AttrValue.front() == '\''))
+                    {
+                        AttrValue = AttrValue.substr(1, AttrValue.size() - 2);
+                    }
+
+                    std::string NodeAttrValue = ElementNode->GetAttribute(AttrName);
+                    if (NodeAttrValue != AttrValue)
+                    {
+                        IsMatching = false;
+                    }
+                }
+                else
+                {
+                    // Attribute existence selector
+                    if (ElementNode->Attributes.find(AttrSelector) == ElementNode->Attributes.end())
+                    {
+                        IsMatching = false;
+                    }
+                }
+            }
+            else
+            {
+                // Tag selector
+                size_t Start = Position;
+                while (Position < Token.size() && Token[Position] != '.' && Token[Position] != '#' && Token[Position] != '[')
+                {
+                    ++Position;
+                }
+                std::string TagName = Token.substr(Start, Position - Start);
+                if (Utils::ToLower(ElementNode->Tag) != Utils::ToLower(TagName))
+                {
+                    IsMatching = false;
+                }
+            }
+        }
+        return IsMatching;
     }
 } // namespace HtmlParser

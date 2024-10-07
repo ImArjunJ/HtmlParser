@@ -1,6 +1,6 @@
 #pragma once
+#include <functional>
 #include <memory>
-#include <string>
 #include <vector>
 
 #include "Node.hpp"
@@ -10,28 +10,29 @@ namespace HtmlParser
     class DOM
     {
     public:
-        explicit DOM(std::shared_ptr<Node> root) : m_Root(root)
-        {
-        }
+        DOM(const std::shared_ptr<Node>& Root);
 
-        // Get the root node of the DOM
-        std::shared_ptr<Node> Root() const
-        {
-            return m_Root;
-        }
+        std::shared_ptr<Node> Root() const;
 
-        std::vector<std::shared_ptr<Node>> GetRoots() const;
+        void Traverse(const std::function<void(const std::shared_ptr<Node>&)>& Visitor) const;
 
-        // Serialize the DOM back into HTML
+        std::vector<std::shared_ptr<Node>> GetElementsByTagName(const std::string& TagName) const;
+        std::vector<std::shared_ptr<Node>> GetElementsByClassName(const std::string& ClassName) const;
+        std::shared_ptr<Node> GetElementById(const std::string& Id) const;
+
         std::string ToHtml() const;
 
-        // Find the first node matching the given CSS selector using the Query class
-        std::shared_ptr<Node> Find(const std::string& selector) const;
-
-        // Find all nodes matching the given CSS selector using the Query class
-        std::vector<std::shared_ptr<Node>> FindAll(const std::string& selector) const;
-
     private:
-        std::shared_ptr<Node> m_Root; // Root of the DOM tree
+        std::shared_ptr<Node> Document;
+
+        void TraverseImpl(const std::shared_ptr<Node>& ElementNode, const std::function<void(const std::shared_ptr<Node>&)>& Visitor) const;
+
+        void GetElementsByTagNameImpl(const std::shared_ptr<Node>& ElementNode, const std::string& TagName, std::vector<std::shared_ptr<Node>>& Elements) const;
+
+        void GetElementsByClassNameImpl(const std::shared_ptr<Node>& ElementNode, const std::string& ClassName, std::vector<std::shared_ptr<Node>>& Elements) const;
+
+        void GetElementByIdImpl(const std::shared_ptr<Node>& ElementNode, const std::string& Id, std::shared_ptr<Node>& Result) const;
+
+        void ToHtmlImpl(const std::shared_ptr<Node>& ElementNode, std::string& Html) const;
     };
 } // namespace HtmlParser
