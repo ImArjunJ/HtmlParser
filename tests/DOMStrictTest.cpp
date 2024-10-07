@@ -37,7 +37,7 @@ TEST(DOMStrictTest, ParsesWellFormedHTMLInStrictMode)
         std::vector<std::shared_ptr<HtmlParser::Node>> ElementChildren;
         for (const auto& Child : HtmlElement->Children)
         {
-            if (Child->NodeType == HtmlParser::NodeType::Element)
+            if (Child->Type == HtmlParser::NodeType::Element)
             {
                 ElementChildren.push_back(Child);
             }

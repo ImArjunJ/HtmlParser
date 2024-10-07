@@ -107,7 +107,7 @@ namespace HtmlParser
 
     bool Query::MatchSelector(const std::shared_ptr<Node>& ElementNode, const std::string& Token) const
     {
-        if (ElementNode->NodeType != NodeType::Element)
+        if (ElementNode->Type != NodeType::Element)
             return false;
 
         size_t Position = 0;
