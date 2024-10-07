@@ -20,7 +20,7 @@ namespace HtmlParser
     public:
         Node(NodeType Type);
 
-        NodeType NodeType;
+        HtmlParser::NodeType NodeType;
         std::string Tag;
         std::string Text;
         std::unordered_map<std::string, std::string> Attributes;
