@@ -29,5 +29,7 @@ int main()
     });
 
     std::cout << "Total number of elements: " << ElementCount << "\n";
+
+    std::cout << DOM.ToHtml() << "\n";
     return 0;
 }
