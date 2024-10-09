@@ -72,14 +72,14 @@ namespace HtmlParser
         void HandleAfterAttributeValueQuotedState(char c);
         void HandleAfterAttributeValueUnquotedState(char c);
 
-        std::string Input;
-        size_t Position;
-        State CurrentState;
+        std::string m_Input;
+        size_t m_Position;
+        State m_CurrentState;
 
-        Token CurrentToken;
-        std::string CurrentAttributeName;
-        std::string CurrentAttributeValue;
+        Token m_CurrentToken;
+        std::string m_CurrentAttributeName;
+        std::string m_CurrentAttributeValue;
 
-        std::vector<Token> Tokens;
+        std::vector<Token> m_Tokens;
     };
 } // namespace HtmlParser

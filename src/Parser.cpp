@@ -54,13 +54,13 @@ namespace HtmlParser
 
     void Parser::HandleError(const std::string& ErrorMessage)
     {
-        if (IsStrict)
+        if (m_IsStrict)
         {
             throw std::runtime_error("Parse error: " + ErrorMessage);
         }
         else
         {
-            // For non-strict mode, can log the error or ignore it
+            // For non-  mode, can log the error or ignore it
             // std::cerr << "Parse error: " << message << std::endl;
         }
     }

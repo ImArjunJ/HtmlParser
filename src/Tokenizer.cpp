@@ -2,16 +2,16 @@
 
 namespace HtmlParser
 {
-    Tokenizer::Tokenizer(const std::string& InputStr) : Input(InputStr), Position(0), CurrentState(State::Data)
+    Tokenizer::Tokenizer(const std::string& InputStr) : m_Input(InputStr), m_Position(0), m_CurrentState(State::Data)
     {
     }
 
     void Tokenizer::Tokenize()
     {
-        while (Position < Input.size())
+        while (m_Position < m_Input.size())
         {
-            char c = Input[Position++];
-            switch (CurrentState)
+            char c = m_Input[m_Position++];
+            switch (m_CurrentState)
             {
             case State::Data:
                 HandleDataState(c);
@@ -61,17 +61,17 @@ namespace HtmlParser
 
     const std::vector<Token>& Tokenizer::GetTokens() const
     {
-        return Tokens;
+        return m_Tokens;
     }
 
-    void Tokenizer::EmitToken(const Token& token)
+    void Tokenizer::EmitToken(const Token& Token)
     {
-        Tokens.push_back(token);
+        m_Tokens.push_back(Token);
     }
 
     void Tokenizer::ReconsumeChar()
     {
-        --Position;
+        --m_Position;
     }
 
     bool Tokenizer::IsWhitespace(char c) const
@@ -89,7 +89,7 @@ namespace HtmlParser
     {
         if (c == '<')
         {
-            CurrentState = State::TagOpen;
+            m_CurrentState = State::TagOpen;
         }
         else
         {
@@ -104,19 +104,19 @@ namespace HtmlParser
     {
         if (c == '/')
         {
-            CurrentState = State::EndTagOpen;
+            m_CurrentState = State::EndTagOpen;
         }
         else if (IsAlpha(c))
         {
-            CurrentToken = Token();
-            CurrentToken.Type = TokenType::StartTag;
-            CurrentToken.Data = c;
-            CurrentState = State::TagName;
+            m_CurrentToken = Token();
+            m_CurrentToken.Type = TokenType::StartTag;
+            m_CurrentToken.Data = c;
+            m_CurrentState = State::TagName;
         }
         else
         {
             // Parse error
-            CurrentState = State::Data;
+            m_CurrentState = State::Data;
             Token Token;
             Token.Type = TokenType::Character;
             Token.Data = '<';
@@ -129,20 +129,20 @@ namespace HtmlParser
     {
         if (IsWhitespace(c))
         {
-            CurrentState = State::BeforeAttributeName;
+            m_CurrentState = State::BeforeAttributeName;
         }
         else if (c == '/')
         {
-            CurrentState = State::SelfClosingStartTag;
+            m_CurrentState = State::SelfClosingStartTag;
         }
         else if (c == '>')
         {
-            EmitToken(CurrentToken);
-            CurrentState = State::Data;
+            EmitToken(m_CurrentToken);
+            m_CurrentState = State::Data;
         }
         else
         {
-            CurrentToken.Data += c;
+            m_CurrentToken.Data += c;
         }
     }
 
@@ -150,15 +150,15 @@ namespace HtmlParser
     {
         if (IsAlpha(c))
         {
-            CurrentToken = Token();
-            CurrentToken.Type = TokenType::EndTag;
-            CurrentToken.Data = c;
-            CurrentState = State::TagName;
+            m_CurrentToken = Token();
+            m_CurrentToken.Type = TokenType::EndTag;
+            m_CurrentToken.Data = c;
+            m_CurrentState = State::TagName;
         }
         else
         {
             // Parse error
-            CurrentState = State::Data;
+            m_CurrentState = State::Data;
         }
     }
 
@@ -166,14 +166,14 @@ namespace HtmlParser
     {
         if (c == '>')
         {
-            CurrentToken.SelfClosing = true;
-            EmitToken(CurrentToken);
-            CurrentState = State::Data;
+            m_CurrentToken.SelfClosing = true;
+            EmitToken(m_CurrentToken);
+            m_CurrentState = State::Data;
         }
         else
         {
             // Parse error
-            CurrentState = State::BeforeAttributeName;
+            m_CurrentState = State::BeforeAttributeName;
             ReconsumeChar();
         }
     }
@@ -186,14 +186,14 @@ namespace HtmlParser
         }
         else if (c == '/' || c == '>')
         {
-            CurrentState = State::AfterAttributeName;
+            m_CurrentState = State::AfterAttributeName;
             ReconsumeChar();
         }
         else
         {
-            CurrentAttributeName.clear();
-            CurrentAttributeValue.clear();
-            CurrentState = State::AttributeName;
+            m_CurrentAttributeName.clear();
+            m_CurrentAttributeValue.clear();
+            m_CurrentState = State::AttributeName;
             ReconsumeChar();
         }
     }
@@ -202,16 +202,16 @@ namespace HtmlParser
     {
         if (IsWhitespace(c) || c == '/' || c == '>')
         {
-            CurrentState = State::AfterAttributeName;
+            m_CurrentState = State::AfterAttributeName;
             ReconsumeChar();
         }
         else if (c == '=')
         {
-            CurrentState = State::BeforeAttributeValue;
+            m_CurrentState = State::BeforeAttributeValue;
         }
         else
         {
-            CurrentAttributeName += c;
+            m_CurrentAttributeName += c;
         }
     }
 
@@ -223,26 +223,26 @@ namespace HtmlParser
         }
         else if (c == '/')
         {
-            CurrentState = State::SelfClosingStartTag;
+            m_CurrentState = State::SelfClosingStartTag;
         }
         else if (c == '=')
         {
-            CurrentState = State::BeforeAttributeValue;
+            m_CurrentState = State::BeforeAttributeValue;
         }
         else if (c == '>')
         {
-            CurrentToken.Attributes[CurrentAttributeName] = CurrentAttributeValue;
-            CurrentAttributeName.clear();
-            CurrentAttributeValue.clear();
-            EmitToken(CurrentToken);
-            CurrentState = State::Data;
+            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
+            m_CurrentAttributeName.clear();
+            m_CurrentAttributeValue.clear();
+            EmitToken(m_CurrentToken);
+            m_CurrentState = State::Data;
         }
         else
         {
-            CurrentToken.Attributes[CurrentAttributeName] = CurrentAttributeValue;
-            CurrentAttributeName.clear();
-            CurrentAttributeValue.clear();
-            CurrentState = State::AttributeName;
+            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
+            m_CurrentAttributeName.clear();
+            m_CurrentAttributeValue.clear();
+            m_CurrentState = State::AttributeName;
             ReconsumeChar();
         }
     }
@@ -255,24 +255,24 @@ namespace HtmlParser
         }
         else if (c == '"')
         {
-            CurrentState = State::AttributeValueDoubleQuoted;
+            m_CurrentState = State::AttributeValueDoubleQuoted;
         }
         else if (c == '\'')
         {
-            CurrentState = State::AttributeValueSingleQuoted;
+            m_CurrentState = State::AttributeValueSingleQuoted;
         }
         else if (c == '>')
         {
             // Parse error
-            CurrentToken.Attributes[CurrentAttributeName] = CurrentAttributeValue;
-            CurrentAttributeName.clear();
-            CurrentAttributeValue.clear();
-            EmitToken(CurrentToken);
-            CurrentState = State::Data;
+            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
+            m_CurrentAttributeName.clear();
+            m_CurrentAttributeValue.clear();
+            EmitToken(m_CurrentToken);
+            m_CurrentState = State::Data;
         }
         else
         {
-            CurrentState = State::AttributeValueUnquoted;
+            m_CurrentState = State::AttributeValueUnquoted;
             ReconsumeChar();
         }
     }
@@ -281,14 +281,14 @@ namespace HtmlParser
     {
         if (c == '"')
         {
-            CurrentToken.Attributes[CurrentAttributeName] = CurrentAttributeValue;
-            CurrentAttributeName.clear();
-            CurrentAttributeValue.clear();
-            CurrentState = State::AfterAttributeValueQuoted;
+            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
+            m_CurrentAttributeName.clear();
+            m_CurrentAttributeValue.clear();
+            m_CurrentState = State::AfterAttributeValueQuoted;
         }
         else
         {
-            CurrentAttributeValue += c;
+            m_CurrentAttributeValue += c;
         }
     }
 
@@ -296,14 +296,14 @@ namespace HtmlParser
     {
         if (c == '\'')
         {
-            CurrentToken.Attributes[CurrentAttributeName] = CurrentAttributeValue;
-            CurrentAttributeName.clear();
-            CurrentAttributeValue.clear();
-            CurrentState = State::AfterAttributeValueQuoted;
+            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
+            m_CurrentAttributeName.clear();
+            m_CurrentAttributeValue.clear();
+            m_CurrentState = State::AfterAttributeValueQuoted;
         }
         else
         {
-            CurrentAttributeValue += c;
+            m_CurrentAttributeValue += c;
         }
     }
 
@@ -311,22 +311,22 @@ namespace HtmlParser
     {
         if (IsWhitespace(c))
         {
-            CurrentToken.Attributes[CurrentAttributeName] = CurrentAttributeValue;
-            CurrentAttributeName.clear();
-            CurrentAttributeValue.clear();
-            CurrentState = State::AfterAttributeValueUnquoted;
+            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
+            m_CurrentAttributeName.clear();
+            m_CurrentAttributeValue.clear();
+            m_CurrentState = State::AfterAttributeValueUnquoted;
         }
         else if (c == '>')
         {
-            CurrentToken.Attributes[CurrentAttributeName] = CurrentAttributeValue;
-            CurrentAttributeName.clear();
-            CurrentAttributeValue.clear();
-            EmitToken(CurrentToken);
-            CurrentState = State::Data;
+            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
+            m_CurrentAttributeName.clear();
+            m_CurrentAttributeValue.clear();
+            EmitToken(m_CurrentToken);
+            m_CurrentState = State::Data;
         }
         else if (c == '&')
         {
-            CurrentAttributeValue += c;
+            m_CurrentAttributeValue += c;
         }
         else if (c == '\0')
         {
@@ -335,11 +335,11 @@ namespace HtmlParser
         else if (c == '"' || c == '\'' || c == '<' || c == '=' || c == '`')
         {
             // Parse error
-            CurrentAttributeValue += c;
+            m_CurrentAttributeValue += c;
         }
         else
         {
-            CurrentAttributeValue += c;
+            m_CurrentAttributeValue += c;
         }
     }
 
@@ -347,21 +347,21 @@ namespace HtmlParser
     {
         if (IsWhitespace(c))
         {
-            CurrentState = State::BeforeAttributeName;
+            m_CurrentState = State::BeforeAttributeName;
         }
         else if (c == '/')
         {
-            CurrentState = State::SelfClosingStartTag;
+            m_CurrentState = State::SelfClosingStartTag;
         }
         else if (c == '>')
         {
-            EmitToken(CurrentToken);
-            CurrentState = State::Data;
+            EmitToken(m_CurrentToken);
+            m_CurrentState = State::Data;
         }
         else
         {
             // Parse error
-            CurrentState = State::BeforeAttributeName;
+            m_CurrentState = State::BeforeAttributeName;
             ReconsumeChar();
         }
     }
@@ -370,21 +370,21 @@ namespace HtmlParser
     {
         if (IsWhitespace(c))
         {
-            CurrentState = State::BeforeAttributeName;
+            m_CurrentState = State::BeforeAttributeName;
         }
         else if (c == '/')
         {
-            CurrentState = State::SelfClosingStartTag;
+            m_CurrentState = State::SelfClosingStartTag;
         }
         else if (c == '>')
         {
-            EmitToken(CurrentToken);
-            CurrentState = State::Data;
+            EmitToken(m_CurrentToken);
+            m_CurrentState = State::Data;
         }
         else
         {
             // Parse error
-            CurrentState = State::BeforeAttributeName;
+            m_CurrentState = State::BeforeAttributeName;
             ReconsumeChar();
         }
     }

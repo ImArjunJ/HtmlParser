@@ -15,7 +15,7 @@ namespace HtmlParser
 
         void SetStrict(bool Strict)
         {
-            IsStrict = Strict;
+            m_IsStrict = Strict;
         }
 
     private:
@@ -50,6 +50,7 @@ namespace HtmlParser
 
         InsertionMode InsertionMode;
 
-        bool IsStrict = false;
+        bool m_IsStrict = false;
+        bool m_IsFragment = false;
     };
 } // namespace HtmlParser

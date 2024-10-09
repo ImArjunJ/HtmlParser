@@ -5,18 +5,18 @@
 
 namespace HtmlParser
 {
-    DOM::DOM(const std::shared_ptr<Node>& Root) : Document(Root)
+    DOM::DOM(const std::shared_ptr<Node>& Root) : m_Document(Root)
     {
     }
 
     std::shared_ptr<Node> DOM::Root() const
     {
-        return Document;
+        return m_Document;
     }
 
     void DOM::Traverse(const std::function<void(const std::shared_ptr<Node>&)>& Visitor) const
     {
-        TraverseImpl(Document, Visitor);
+        TraverseImpl(m_Document, Visitor);
     }
 
     void DOM::TraverseImpl(const std::shared_ptr<Node>& ElementNode, const std::function<void(const std::shared_ptr<Node>&)>& Visitor) const
@@ -31,7 +31,7 @@ namespace HtmlParser
     std::vector<std::shared_ptr<Node>> DOM::GetElementsByTagName(const std::string& TagName) const
     {
         std::vector<std::shared_ptr<Node>> Elements;
-        GetElementsByTagNameImpl(Document, TagName, Elements);
+        GetElementsByTagNameImpl(m_Document, TagName, Elements);
         return Elements;
     }
 
@@ -50,7 +50,7 @@ namespace HtmlParser
     std::vector<std::shared_ptr<Node>> DOM::GetElementsByClassName(const std::string& ClassName) const
     {
         std::vector<std::shared_ptr<Node>> Elements;
-        GetElementsByClassNameImpl(Document, ClassName, Elements);
+        GetElementsByClassNameImpl(m_Document, ClassName, Elements);
         return Elements;
     }
 
@@ -69,7 +69,7 @@ namespace HtmlParser
     std::shared_ptr<Node> DOM::GetElementById(const std::string& Id) const
     {
         std::shared_ptr<Node> Result = nullptr;
-        GetElementByIdImpl(Document, Id, Result);
+        GetElementByIdImpl(m_Document, Id, Result);
         return Result;
     }
 
@@ -98,7 +98,7 @@ namespace HtmlParser
     std::string DOM::ToHtml() const
     {
         std::string Html;
-        for (const auto& Child : Document->Children)
+        for (const auto& Child : m_Document->Children)
         {
             ToHtmlImpl(Child, Html);
         }
@@ -115,7 +115,6 @@ namespace HtmlParser
         {
             Html += "<" + ElementNode->Tag;
 
-            // Add attributes
             for (const auto& Attribute : ElementNode->Attributes)
             {
                 Html += " " + Attribute.first + "=\"" + Utils::EscapeHtml(Attribute.second) + "\"";
@@ -129,12 +128,14 @@ namespace HtmlParser
             else
             {
                 Html += ">";
+
                 // Recursively serialize child nodes
                 for (const auto& Child : ElementNode->Children)
                 {
                     ToHtmlImpl(Child, Html);
                 }
-                Html += "</" + ElementNode->Text + ">";
+
+                Html += "</" + ElementNode->Tag + ">";
             }
             break;
         }

@@ -18,7 +18,7 @@ namespace HtmlParser
         std::shared_ptr<Node> SelectFirst(const std::string& Selector) const;
 
     private:
-        std::shared_ptr<Node> Root;
+        std::shared_ptr<Node> m_Root;
 
         std::vector<std::string> TokenizeSelector(const std::string& Selector) const;
 

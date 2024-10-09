@@ -4,7 +4,7 @@
 
 namespace HtmlParser
 {
-    Query::Query(const std::shared_ptr<Node>& QueryRoot) : Root(QueryRoot)
+    Query::Query(const std::shared_ptr<Node>& QueryRoot) : m_Root(QueryRoot)
     {
     }
 
@@ -12,7 +12,7 @@ namespace HtmlParser
     {
         std::vector<std::string> Tokens = TokenizeSelector(Selector);
         std::vector<std::shared_ptr<Node>> Results;
-        SelectImpl(Root, Tokens, 0, Results);
+        SelectImpl(m_Root, Tokens, 0, Results);
         return Results;
     }
 
@@ -20,7 +20,7 @@ namespace HtmlParser
     {
         std::vector<std::string> Tokens = TokenizeSelector(Selector);
         std::vector<std::shared_ptr<Node>> Results;
-        SelectImpl(Root, Tokens, 0, Results);
+        SelectImpl(m_Root, Tokens, 0, Results);
         if (!Results.empty())
         {
             return Results[0];
