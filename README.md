@@ -183,6 +183,10 @@ Found 2 paragraphs with class 'intro':
 Highlighted intro paragraph: Another introduction.
 ```
 
+## Reference
+
+- [HTML5 API Reference](https://dev.w3.org/html5/spec-LC/)
+
 ## Contributing
 
 Contributions are welcome! Please open issues or submit pull requests to improve **HtmlParser**.
