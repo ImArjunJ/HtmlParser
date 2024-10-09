@@ -2,6 +2,12 @@
 
 A cross-platform C++ HTML parser library inspired by BeautifulSoup, featuring DOM manipulation and querying support.
 
+## FAQ
+
+> Why is this library special?
+
+It's mostly the super easy interface. For example, Gumbo exists and its great but it's a pure C library, and it shows by the way its used. I wanted to try to create something that's super simple to use, and feels easy to use in a "modern" C++ context.
+
 ## Table of Contents
 
 - [Installation](#installation)
