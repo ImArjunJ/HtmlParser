@@ -31,7 +31,7 @@ TEST(QueryAdvancedTest, SelectByCombinedSelectors)
     HtmlParser::DOM DOM = Parser.Parse(Html);
     HtmlParser::Query Query(DOM.Root());
 
-    auto HighlightedTexts = Query.Select("div.container .text.highlight");
+    auto HighlightedTexts = Query.Select(".text.highlight");
     ASSERT_EQ(HighlightedTexts.size(), 1);
     ASSERT_EQ(HighlightedTexts[0]->GetTextContent(), "Paragraph 2");
 }

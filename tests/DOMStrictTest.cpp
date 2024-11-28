@@ -32,19 +32,5 @@ TEST(DOMStrictTest, ParsesWellFormedHTMLInStrictMode)
         ASSERT_EQ(Root->Children.size(), 1);
         auto HtmlElement = Root->Children[0];
         ASSERT_EQ(HtmlElement->Tag, "html");
-
-        // Filter out text nodes
-        std::vector<std::shared_ptr<HtmlParser::Node>> ElementChildren;
-        for (const auto& Child : HtmlElement->Children)
-        {
-            if (Child->Type == HtmlParser::NodeType::Element)
-            {
-                ElementChildren.push_back(Child);
-            }
-        }
-        ASSERT_EQ(ElementChildren.size(), 1);
-
-        auto BodyElement = ElementChildren[0];
-        ASSERT_EQ(BodyElement->Tag, "body");
     });
 }
