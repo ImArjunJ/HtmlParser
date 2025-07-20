@@ -119,6 +119,9 @@ namespace HtmlParser
 
     void Parser::InsertionModeBeforeHtml(const Token& Token)
     {
+        if (Token.Type == TokenType::Character && isspace(Token.Data[0])) {
+            return; // Ignore whitespace
+        }
         if (Token.Type == TokenType::StartTag && Utils::ToLower(Token.Data) == "html")
         {
             InsertElement(Token);
@@ -138,6 +141,9 @@ namespace HtmlParser
 
     void Parser::InsertionModeBeforeHead(const Token& Token)
     {
+        if (Token.Type == TokenType::Character && isspace(Token.Data[0])) {
+            return; // Ignore whitespace
+        }
         if (Token.Type == TokenType::StartTag && Utils::ToLower(Token.Data) == "head")
         {
             InsertElement(Token);
@@ -157,6 +163,9 @@ namespace HtmlParser
 
     void Parser::InsertionModeInHead(const Token& Token)
     {
+        if (Token.Type == TokenType::Character && isspace(Token.Data[0])) {
+            return; // Ignore whitespace
+        }
         if (Token.Type == TokenType::EndTag && Utils::ToLower(Token.Data) == "head")
         {
             OpenElements.pop_back();
@@ -173,6 +182,9 @@ namespace HtmlParser
 
     void Parser::InsertionModeAfterHead(const Token& Token)
     {
+        if (Token.Type == TokenType::Character && isspace(Token.Data[0])) {
+            return; // Ignore whitespace
+        }
         if (Token.Type == TokenType::StartTag && Utils::ToLower(Token.Data) == "body")
         {
             InsertElement(Token);
