@@ -1,16 +1,21 @@
 cmake_minimum_required(VERSION 3.10)
 project(HtmlParser)
 
-set(CMAKE_CXX_STANDARD 20)
+if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
+    set(HTMLPARSER_BUILD_OPTION_DEFAULT ON)
+else()
+    set(HTMLPARSER_BUILD_OPTION_DEFAULT OFF)
+endif()
 
-include_directories(include)
 file(GLOB_RECURSE SOURCES "src/*.cpp")
 add_library(HtmlParser STATIC ${SOURCES})
-target_include_directories(HtmlParser PUBLIC include)
+add_library(HtmlParser::HtmlParser ALIAS HtmlParser)
+target_compile_features(HtmlParser PUBLIC cxx_std_20)
+target_include_directories(HtmlParser PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-option(HTMLPARSER_BUILD_TESTS "Build tests" ON)
-option(HTMLPARSER_BUILD_BENCHMARKS "Build benchmarks" ON)
-option(HTMLPARSER_BUILD_EXAMPLES "Build examples" ON)
+option(HTMLPARSER_BUILD_TESTS "Build tests" ${HTMLPARSER_BUILD_OPTION_DEFAULT})
+option(HTMLPARSER_BUILD_BENCHMARKS "Build benchmarks" ${HTMLPARSER_BUILD_OPTION_DEFAULT})
+option(HTMLPARSER_BUILD_EXAMPLES "Build examples" ${HTMLPARSER_BUILD_OPTION_DEFAULT})
 
 if(HTMLPARSER_BUILD_TESTS)
     enable_testing()

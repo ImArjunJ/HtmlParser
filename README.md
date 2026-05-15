@@ -27,7 +27,7 @@ The best way to install HtmlParser is via CMake, using `FetchContent`
 include(FetchContent)
 FetchContent_Declare(
         HtmlParser
-        GIT_REPOSITORY https://github.com/ImArjunJ/htmlparser.git
+        GIT_REPOSITORY https://github.com/ImArjunJ/HtmlParser.git
         GIT_TAG master
 )
 
@@ -38,7 +38,7 @@ FetchContent_MakeAvailable(HtmlParser)
 
 ...
 
-target_link_libraries(TargetProject PRIVATE HtmlParser ...)
+target_link_libraries(TargetProject PRIVATE HtmlParser::HtmlParser ...)
 ```
 
 ## Basic Usage
