@@ -24,9 +24,7 @@ int main()
         auto Parent = ItemToRemove->Parent.lock();
         if (Parent)
         {
-            // Remove the element from its parent's children
-            auto& Siblings = Parent->Children;
-            Siblings.erase(std::remove(Siblings.begin(), Siblings.end(), ItemToRemove), Siblings.end());
+            Parent->RemoveChild(ItemToRemove);
             std::cout << "Element removed.\n";
         }
     }

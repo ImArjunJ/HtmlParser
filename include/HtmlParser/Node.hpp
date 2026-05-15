@@ -28,9 +28,11 @@ namespace HtmlParser
         std::weak_ptr<Node> Parent;
 
         void AppendChild(const std::shared_ptr<Node>& Child);
+        bool RemoveChild(const std::shared_ptr<Node>& Child);
         std::string GetAttribute(const std::string& Name) const;
         void SetAttribute(const std::string& Name, const std::string& Value);
         bool HasClass(const std::string& ClassName) const;
         std::string GetTextContent() const;
+        void SetTextContent(const std::string& TextContent);
     };
 } // namespace HtmlParser
