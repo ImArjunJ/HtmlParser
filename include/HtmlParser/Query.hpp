@@ -22,8 +22,6 @@ namespace HtmlParser
 
         std::vector<std::string> TokenizeSelector(const std::string& Selector) const;
 
-        void SelectImpl(const std::shared_ptr<Node>& ElementNode, const std::vector<std::string>& Tokens, size_t Index, std::vector<std::shared_ptr<Node>>& Results) const;
-
         bool MatchSelector(const std::shared_ptr<Node>& ElementNode, const std::string& Token) const;
     };
 

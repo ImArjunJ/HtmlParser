@@ -35,3 +35,81 @@ TEST(QueryAdvancedTest, SelectByCombinedSelectors)
     ASSERT_EQ(HighlightedTexts.size(), 1);
     ASSERT_EQ(HighlightedTexts[0]->GetTextContent(), "Paragraph 2");
 }
+
+TEST(QueryAdvancedTest, SelectByDescendantCombinator)
+{
+    std::string Html = R"(
+    <div class="container">
+        <section>
+            <p>One</p>
+            <p>Two</p>
+        </section>
+    </div>
+    )";
+    HtmlParser::Parser Parser;
+    HtmlParser::DOM DOM = Parser.Parse(Html);
+    HtmlParser::Query Query(DOM.Root());
+
+    auto Paragraphs = Query.Select("div.container p");
+    ASSERT_EQ(Paragraphs.size(), 2);
+}
+
+TEST(QueryAdvancedTest, SelectByChildCombinator)
+{
+    std::string Html = R"(
+    <ul>
+        <li>Direct</li>
+        <li><span>Nested</span></li>
+    </ul>
+    )";
+    HtmlParser::Parser Parser;
+    HtmlParser::DOM DOM = Parser.Parse(Html);
+    HtmlParser::Query Query(DOM.Root());
+
+    auto Items = Query.Select("ul > li");
+    ASSERT_EQ(Items.size(), 2);
+
+    auto NestedSpans = Query.Select("ul > span");
+    ASSERT_TRUE(NestedSpans.empty());
+}
+
+TEST(QueryAdvancedTest, SelectByMultipleDescendantCombinators)
+{
+    std::string Html = R"(
+    <div class="theirclass">
+        <table>
+            <tr>
+                <td><a>One</a></td>
+                <td><a>Two</a></td>
+            </tr>
+        </table>
+    </div>
+    )";
+    HtmlParser::Parser Parser;
+    HtmlParser::DOM DOM = Parser.Parse(Html);
+    HtmlParser::Query Query(DOM.Root());
+
+    auto Links = Query.Select("div.theirclass td a");
+    ASSERT_EQ(Links.size(), 2);
+}
+
+TEST(QueryAdvancedTest, SelectBySiblingCombinators)
+{
+    std::string Html = R"(
+    <div>
+        <h2>Title</h2>
+        <p>First</p>
+        <p>Second</p>
+    </div>
+    )";
+    HtmlParser::Parser Parser;
+    HtmlParser::DOM DOM = Parser.Parse(Html);
+    HtmlParser::Query Query(DOM.Root());
+
+    auto Adjacent = Query.Select("h2 + p");
+    ASSERT_EQ(Adjacent.size(), 1);
+    ASSERT_EQ(Adjacent[0]->GetTextContent(), "First");
+
+    auto Following = Query.Select("h2 ~ p");
+    ASSERT_EQ(Following.size(), 2);
+}
