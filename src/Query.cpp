@@ -1,9 +1,31 @@
 #include <HtmlParser/Query.hpp>
 
+#include <algorithm>
+#include <cctype>
+#include <functional>
+#include <unordered_set>
+#include <utility>
+
 #include "Utilities.hpp"
 
 namespace HtmlParser
 {
+    namespace
+    {
+        bool IsCombinator(const std::string& Token)
+        {
+            return Token == " " || Token == ">" || Token == "+" || Token == "~";
+        }
+
+        void AddUnique(const std::shared_ptr<Node>& ElementNode, std::vector<std::shared_ptr<Node>>& Results, std::unordered_set<const Node*>& Seen)
+        {
+            if (Seen.insert(ElementNode.get()).second)
+            {
+                Results.push_back(ElementNode);
+            }
+        }
+    } // namespace
+
     Query::Query(const std::shared_ptr<Node>& QueryRoot) : m_Root(QueryRoot)
     {
     }
@@ -11,16 +33,115 @@ namespace HtmlParser
     std::vector<std::shared_ptr<Node>> Query::Select(const std::string& Selector) const
     {
         std::vector<std::string> Tokens = TokenizeSelector(Selector);
-        std::vector<std::shared_ptr<Node>> Results;
-        SelectImpl(m_Root, Tokens, 0, Results);
-        return Results;
+        if (Tokens.empty() || IsCombinator(Tokens.front()))
+        {
+            return {};
+        }
+
+        std::vector<std::shared_ptr<Node>> CurrentMatches;
+        std::unordered_set<const Node*> Seen;
+
+        std::function<void(const std::shared_ptr<Node>&)> CollectInitialMatches = [&](const std::shared_ptr<Node>& Node) {
+            if (MatchSelector(Node, Tokens.front()))
+            {
+                AddUnique(Node, CurrentMatches, Seen);
+            }
+
+            for (const auto& Child : Node->Children)
+            {
+                CollectInitialMatches(Child);
+            }
+        };
+
+        CollectInitialMatches(m_Root);
+
+        for (size_t Index = 1; Index < Tokens.size(); Index += 2)
+        {
+            if (Index + 1 >= Tokens.size() || !IsCombinator(Tokens[Index]) || IsCombinator(Tokens[Index + 1]))
+            {
+                return {};
+            }
+
+            const std::string& Combinator = Tokens[Index];
+            const std::string& SimpleSelector = Tokens[Index + 1];
+            std::vector<std::shared_ptr<Node>> NextMatches;
+            std::unordered_set<const Node*> NextSeen;
+
+            auto AddIfMatching = [&](const std::shared_ptr<Node>& Node) {
+                if (MatchSelector(Node, SimpleSelector))
+                {
+                    AddUnique(Node, NextMatches, NextSeen);
+                }
+            };
+
+            std::function<void(const std::shared_ptr<Node>&)> CollectDescendants = [&](const std::shared_ptr<Node>& Node) {
+                for (const auto& Child : Node->Children)
+                {
+                    AddIfMatching(Child);
+                    CollectDescendants(Child);
+                }
+            };
+
+            for (const auto& Match : CurrentMatches)
+            {
+                if (Combinator == " ")
+                {
+                    CollectDescendants(Match);
+                }
+                else if (Combinator == ">")
+                {
+                    for (const auto& Child : Match->Children)
+                    {
+                        AddIfMatching(Child);
+                    }
+                }
+                else if (Combinator == "+" || Combinator == "~")
+                {
+                    auto Parent = Match->Parent.lock();
+                    if (!Parent)
+                    {
+                        continue;
+                    }
+
+                    auto it = std::find(Parent->Children.begin(), Parent->Children.end(), Match);
+                    if (it == Parent->Children.end())
+                    {
+                        continue;
+                    }
+
+                    if (Combinator == "+")
+                    {
+                        for (++it; it != Parent->Children.end(); ++it)
+                        {
+                            if ((*it)->Type == NodeType::Element)
+                            {
+                                AddIfMatching(*it);
+                                break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        for (++it; it != Parent->Children.end(); ++it)
+                        {
+                            if ((*it)->Type == NodeType::Element)
+                            {
+                                AddIfMatching(*it);
+                            }
+                        }
+                    }
+                }
+            }
+
+            CurrentMatches = std::move(NextMatches);
+        }
+
+        return CurrentMatches;
     }
 
     std::shared_ptr<Node> Query::SelectFirst(const std::string& Selector) const
     {
-        std::vector<std::string> Tokens = TokenizeSelector(Selector);
-        std::vector<std::shared_ptr<Node>> Results;
-        SelectImpl(m_Root, Tokens, 0, Results);
+        std::vector<std::shared_ptr<Node>> Results = Select(Selector);
         if (!Results.empty())
         {
             return Results[0];
@@ -35,14 +156,25 @@ namespace HtmlParser
         for (size_t i = 0; i < Selector.size(); ++i)
         {
             char c = Selector[i];
-            if (isspace(c))
+            if (std::isspace(static_cast<unsigned char>(c)))
             {
                 if (!Token.empty())
                 {
                     Tokens.push_back(Token);
                     Token.clear();
                 }
-                Tokens.push_back(" ");
+
+                size_t Next = i + 1;
+                while (Next < Selector.size() && std::isspace(static_cast<unsigned char>(Selector[Next])))
+                {
+                    ++Next;
+                }
+
+                if (Next < Selector.size() && Selector[Next] != '>' && Selector[Next] != '+' && Selector[Next] != '~' && !Tokens.empty() && !IsCombinator(Tokens.back()))
+                {
+                    Tokens.push_back(" ");
+                }
+                i = Next - 1;
             }
             else if (c == '>' || c == '+' || c == '~')
             {
@@ -51,7 +183,16 @@ namespace HtmlParser
                     Tokens.push_back(Token);
                     Token.clear();
                 }
+                if (!Tokens.empty() && Tokens.back() == " ")
+                {
+                    Tokens.pop_back();
+                }
                 Tokens.emplace_back(1, c);
+
+                while (i + 1 < Selector.size() && std::isspace(static_cast<unsigned char>(Selector[i + 1])))
+                {
+                    ++i;
+                }
             }
             else
             {
@@ -63,46 +204,6 @@ namespace HtmlParser
             Tokens.push_back(Token);
         }
         return Tokens;
-    }
-
-    void Query::SelectImpl(const std::shared_ptr<Node>& ElementNode, const std::vector<std::string>& Tokens, size_t Index, std::vector<std::shared_ptr<Node>>& Results) const
-    {
-        if (Index >= Tokens.size())
-            return;
-
-        if (Tokens[Index] == " ")
-        {
-            // Descendant combinator
-            for (const auto& child : ElementNode->Children)
-            {
-                SelectImpl(child, Tokens, Index + 1, Results);
-                SelectImpl(child, Tokens, Index, Results);
-            }
-        }
-        else
-        {
-            if (MatchSelector(ElementNode, Tokens[Index]))
-            {
-                if (Index == Tokens.size() - 1)
-                {
-                    Results.push_back(ElementNode);
-                }
-                else
-                {
-                    for (const auto& Child : ElementNode->Children)
-                    {
-                        SelectImpl(Child, Tokens, Index + 1, Results);
-                    }
-                }
-            }
-            else
-            {
-                for (const auto& Child : ElementNode->Children)
-                {
-                    SelectImpl(Child, Tokens, Index, Results);
-                }
-            }
-        }
     }
 
     bool Query::MatchSelector(const std::shared_ptr<Node>& ElementNode, const std::string& Token) const
@@ -194,7 +295,7 @@ namespace HtmlParser
                     ++Position;
                 }
                 std::string TagName = Token.substr(Start, Position - Start);
-                if (Utils::ToLower(ElementNode->Tag) != Utils::ToLower(TagName))
+                if (TagName != "*" && Utils::ToLower(ElementNode->Tag) != Utils::ToLower(TagName))
                 {
                     IsMatching = false;
                 }
