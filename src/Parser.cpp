@@ -1,6 +1,8 @@
 #include <HtmlParser/Node.hpp>
 #include <HtmlParser/Parser.hpp>
+#include <cctype>
 #include <stdexcept>
+#include <unordered_set>
 
 #include "Utilities.hpp"
 
@@ -23,6 +25,12 @@ namespace HtmlParser
 
         for (const auto& Token : Tokens)
         {
+            if (Token.Type == TokenType::Comment)
+            {
+                InsertComment(Token);
+                continue;
+            }
+
             switch (InsertionMode)
             {
             case InsertionMode::Initial:
@@ -49,6 +57,11 @@ namespace HtmlParser
             }
         }
 
+        if (m_IsStrict && HasOpenNonImpliedElements())
+        {
+            HandleError("Unclosed element: " + OpenElements.back()->Tag);
+        }
+
         return DOM(Document);
     }
 
@@ -70,13 +83,27 @@ namespace HtmlParser
         return OpenElements.back();
     }
 
+    void Parser::InsertDoctype(const Token& Token)
+    {
+        auto Doctype = std::make_shared<Node>(NodeType::Doctype);
+        Doctype->Text = Token.Data.empty() ? "html" : Token.Data;
+        Document->AppendChild(Doctype);
+    }
+
+    void Parser::InsertComment(const Token& Token)
+    {
+        auto Comment = std::make_shared<Node>(NodeType::Comment);
+        Comment->Text = Token.Data;
+        CurrentNode()->AppendChild(Comment);
+    }
+
     void Parser::InsertElement(const Token& Token)
     {
         auto Element = std::make_shared<Node>(NodeType::Element);
         Element->Tag = Utils::ToLower(Token.Data);
         Element->Attributes = Token.Attributes;
         CurrentNode()->AppendChild(Element);
-        if (!Token.SelfClosing)
+        if (!Token.SelfClosing && !IsVoidElement(Element->Tag))
         {
             OpenElements.push_back(Element);
         }
@@ -84,6 +111,21 @@ namespace HtmlParser
 
     void Parser::InsertCharacter(const Token& Token)
     {
+        if (Token.Data.empty())
+        {
+            return;
+        }
+
+        if (!CurrentNode()->Children.empty())
+        {
+            auto LastChild = CurrentNode()->Children.back();
+            if (LastChild->Type == NodeType::Text)
+            {
+                LastChild->Text += Token.Data;
+                return;
+            }
+        }
+
         auto TextNode = std::make_shared<Node>(NodeType::Text);
         TextNode->Text = Token.Data;
         CurrentNode()->AppendChild(TextNode);
@@ -96,6 +138,10 @@ namespace HtmlParser
         {
             if ((*it)->Tag == TagName)
             {
+                if (m_IsStrict && it != OpenElements.rbegin())
+                {
+                    HandleError("Unexpected end tag: " + Token.Data);
+                }
                 OpenElements.erase(it.base() - 1, OpenElements.end());
                 return;
             }
@@ -104,11 +150,37 @@ namespace HtmlParser
         HandleError("No matching start tag for end tag: " + Token.Data);
     }
 
+    bool Parser::HasOpenNonImpliedElements() const
+    {
+        for (const auto& Element : OpenElements)
+        {
+            if (Element->Type != NodeType::Element)
+            {
+                continue;
+            }
+
+            const std::string TagName = Utils::ToLower(Element->Tag);
+            if (TagName != "html" && TagName != "head" && TagName != "body")
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    bool Parser::IsVoidElement(const std::string& TagName) const
+    {
+        static const std::unordered_set<std::string> VoidElements = {
+            "area", "base", "br", "col", "embed", "hr", "img", "input",
+            "link", "meta", "param", "source", "track", "wbr"};
+        return VoidElements.count(Utils::ToLower(TagName)) > 0;
+    }
+
     void Parser::InsertionModeInitial(const Token& Token)
     {
         if (Token.Type == TokenType::DOCTYPE)
         {
-            // Ignore for now
+            InsertDoctype(Token);
         }
         else
         {
@@ -119,7 +191,7 @@ namespace HtmlParser
 
     void Parser::InsertionModeBeforeHtml(const Token& Token)
     {
-        if (Token.Type == TokenType::Character && isspace(Token.Data[0])) {
+        if (Token.Type == TokenType::Character && std::isspace(static_cast<unsigned char>(Token.Data[0]))) {
             return; // Ignore whitespace
         }
         if (Token.Type == TokenType::StartTag && Utils::ToLower(Token.Data) == "html")
@@ -141,7 +213,7 @@ namespace HtmlParser
 
     void Parser::InsertionModeBeforeHead(const Token& Token)
     {
-        if (Token.Type == TokenType::Character && isspace(Token.Data[0])) {
+        if (Token.Type == TokenType::Character && std::isspace(static_cast<unsigned char>(Token.Data[0]))) {
             return; // Ignore whitespace
         }
         if (Token.Type == TokenType::StartTag && Utils::ToLower(Token.Data) == "head")
@@ -163,7 +235,7 @@ namespace HtmlParser
 
     void Parser::InsertionModeInHead(const Token& Token)
     {
-        if (Token.Type == TokenType::Character && isspace(Token.Data[0])) {
+        if (Token.Type == TokenType::Character && std::isspace(static_cast<unsigned char>(Token.Data[0]))) {
             return; // Ignore whitespace
         }
         if (Token.Type == TokenType::EndTag && Utils::ToLower(Token.Data) == "head")
@@ -182,7 +254,7 @@ namespace HtmlParser
 
     void Parser::InsertionModeAfterHead(const Token& Token)
     {
-        if (Token.Type == TokenType::Character && isspace(Token.Data[0])) {
+        if (Token.Type == TokenType::Character && std::isspace(static_cast<unsigned char>(Token.Data[0]))) {
             return; // Ignore whitespace
         }
         if (Token.Type == TokenType::StartTag && Utils::ToLower(Token.Data) == "body")

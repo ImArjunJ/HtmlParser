@@ -30,9 +30,13 @@ namespace HtmlParser
 
         std::shared_ptr<Node> CurrentNode();
 
+        void InsertDoctype(const Token& Token);
+        void InsertComment(const Token& Token);
         void InsertElement(const Token& Token);
         void InsertCharacter(const Token& Token);
         void CloseElement(const Token& Token);
+        bool HasOpenNonImpliedElements() const;
+        bool IsVoidElement(const std::string& TagName) const;
 
         std::shared_ptr<Node> Document;
         std::vector<std::shared_ptr<Node>> OpenElements;

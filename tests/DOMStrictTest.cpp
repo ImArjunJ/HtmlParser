@@ -16,6 +16,15 @@ TEST(DOMStrictTest, ThrowsOnMalformedHTML)
     ASSERT_THROW({ HtmlParser::DOM DOM = Parser.Parse(Html); }, std::runtime_error);
 }
 
+TEST(DOMStrictTest, ThrowsOnUnclosedElementAtEndOfInput)
+{
+    std::string Html = "<div><p>Unclosed paragraph";
+    HtmlParser::Parser Parser;
+    Parser.SetStrict(true);
+
+    ASSERT_THROW({ HtmlParser::DOM DOM = Parser.Parse(Html); }, std::runtime_error);
+}
+
 TEST(DOMStrictTest, ParsesWellFormedHTMLInStrictMode)
 {
     std::string Html = R"(

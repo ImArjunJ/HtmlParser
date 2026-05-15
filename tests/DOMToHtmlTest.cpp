@@ -27,3 +27,27 @@ TEST(DOMToHtmlTest, SerializesDOMToHtml)
     // Compare the structures
     ASSERT_EQ(DOM.Root()->Children.size(), DOM2.Root()->Children.size());
 }
+
+TEST(DOMToHtmlTest, PreservesTextAfterVoidElement)
+{
+    HtmlParser::Parser Parser;
+    HtmlParser::DOM DOM = Parser.Parse("<p>before<img src=\"x\">after</p>");
+
+    ASSERT_EQ(DOM.ToHtml(), "<html><head></head><body><p>before<img src=\"x\">after</p></body></html>");
+}
+
+TEST(DOMToHtmlTest, DoesNotDoubleEscapeDecodedEntities)
+{
+    HtmlParser::Parser Parser;
+    HtmlParser::DOM DOM = Parser.Parse("<p>A &amp; B</p>");
+
+    ASSERT_EQ(DOM.ToHtml(), "<html><head></head><body><p>A &amp; B</p></body></html>");
+}
+
+TEST(DOMToHtmlTest, SerializesDoctypeAndComments)
+{
+    HtmlParser::Parser Parser;
+    HtmlParser::DOM DOM = Parser.Parse("<!DOCTYPE html><!--note--><html><body><p>x</p></body></html>");
+
+    ASSERT_EQ(DOM.ToHtml(), "<!DOCTYPE html><!--note--><html><head></head><body><p>x</p></body></html>");
+}

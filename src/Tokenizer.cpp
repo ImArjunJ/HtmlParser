@@ -1,5 +1,9 @@
 #include <HtmlParser/Tokenizer.hpp>
 
+#include <cctype>
+
+#include "Utilities.hpp"
+
 namespace HtmlParser
 {
     Tokenizer::Tokenizer(const std::string& InputStr) : m_Input(InputStr), m_Position(0), m_CurrentState(State::Data)
@@ -8,6 +12,13 @@ namespace HtmlParser
 
     void Tokenizer::Tokenize()
     {
+        m_Position = 0;
+        m_CurrentState = State::Data;
+        m_CurrentText.clear();
+        m_CurrentAttributeName.clear();
+        m_CurrentAttributeValue.clear();
+        m_Tokens.clear();
+
         while (m_Position < m_Input.size())
         {
             char c = m_Input[m_Position++];
@@ -57,6 +68,7 @@ namespace HtmlParser
                 break;
             }
         }
+        EmitCurrentText();
     }
 
     const std::vector<Token>& Tokenizer::GetTokens() const
@@ -67,6 +79,30 @@ namespace HtmlParser
     void Tokenizer::EmitToken(const Token& Token)
     {
         m_Tokens.push_back(Token);
+    }
+
+    void Tokenizer::EmitCurrentText()
+    {
+        if (m_CurrentText.empty())
+        {
+            return;
+        }
+
+        Token Token;
+        Token.Type = TokenType::Character;
+        Token.Data = Utils::DecodeHtml(m_CurrentText);
+        EmitToken(Token);
+        m_CurrentText.clear();
+    }
+
+    void Tokenizer::StoreCurrentAttribute()
+    {
+        if (!m_CurrentAttributeName.empty())
+        {
+            m_CurrentToken.Attributes[Utils::ToLower(m_CurrentAttributeName)] = Utils::DecodeHtml(m_CurrentAttributeValue);
+        }
+        m_CurrentAttributeName.clear();
+        m_CurrentAttributeValue.clear();
     }
 
     void Tokenizer::ReconsumeChar()
@@ -84,19 +120,36 @@ namespace HtmlParser
         return std::isalpha(static_cast<unsigned char>(c));
     }
 
+    bool Tokenizer::StartsWithIgnoreCase(size_t Position, const std::string& Value) const
+    {
+        if (Position + Value.size() > m_Input.size())
+        {
+            return false;
+        }
+
+        for (size_t i = 0; i < Value.size(); ++i)
+        {
+            const auto InputChar = static_cast<unsigned char>(m_Input[Position + i]);
+            const auto ValueChar = static_cast<unsigned char>(Value[i]);
+            if (std::tolower(InputChar) != std::tolower(ValueChar))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
     // Implement state handling functions
     void Tokenizer::HandleDataState(char c)
     {
         if (c == '<')
         {
+            EmitCurrentText();
             m_CurrentState = State::TagOpen;
         }
         else
         {
-            Token Token;
-            Token.Type = TokenType::Character;
-            Token.Data = c;
-            EmitToken(Token);
+            m_CurrentText += c;
         }
     }
 
@@ -113,14 +166,57 @@ namespace HtmlParser
             m_CurrentToken.Data = c;
             m_CurrentState = State::TagName;
         }
+        else if (c == '!')
+        {
+            if (m_Position + 2 <= m_Input.size() && m_Input.compare(m_Position, 2, "--") == 0)
+            {
+                const size_t CommentStart = m_Position + 2;
+                const size_t CommentEnd = m_Input.find("-->", CommentStart);
+
+                Token Token;
+                Token.Type = TokenType::Comment;
+                if (CommentEnd == std::string::npos)
+                {
+                    Token.Data = m_Input.substr(CommentStart);
+                    m_Position = m_Input.size();
+                }
+                else
+                {
+                    Token.Data = m_Input.substr(CommentStart, CommentEnd - CommentStart);
+                    m_Position = CommentEnd + 3;
+                }
+                EmitToken(Token);
+            }
+            else if (StartsWithIgnoreCase(m_Position, "DOCTYPE"))
+            {
+                const size_t DoctypeStart = m_Position + 7;
+                const size_t DoctypeEnd = m_Input.find('>', DoctypeStart);
+
+                Token Token;
+                Token.Type = TokenType::DOCTYPE;
+                if (DoctypeEnd == std::string::npos)
+                {
+                    Token.Data = Utils::Trim(m_Input.substr(DoctypeStart));
+                    m_Position = m_Input.size();
+                }
+                else
+                {
+                    Token.Data = Utils::Trim(m_Input.substr(DoctypeStart, DoctypeEnd - DoctypeStart));
+                    m_Position = DoctypeEnd + 1;
+                }
+                EmitToken(Token);
+            }
+            else
+            {
+                m_CurrentText += "<!";
+            }
+            m_CurrentState = State::Data;
+        }
         else
         {
             // Parse error
             m_CurrentState = State::Data;
-            Token Token;
-            Token.Type = TokenType::Character;
-            Token.Data = '<';
-            EmitToken(Token);
+            m_CurrentText += '<';
             ReconsumeChar();
         }
     }
@@ -231,17 +327,13 @@ namespace HtmlParser
         }
         else if (c == '>')
         {
-            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
-            m_CurrentAttributeName.clear();
-            m_CurrentAttributeValue.clear();
+            StoreCurrentAttribute();
             EmitToken(m_CurrentToken);
             m_CurrentState = State::Data;
         }
         else
         {
-            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
-            m_CurrentAttributeName.clear();
-            m_CurrentAttributeValue.clear();
+            StoreCurrentAttribute();
             m_CurrentState = State::AttributeName;
             ReconsumeChar();
         }
@@ -264,9 +356,7 @@ namespace HtmlParser
         else if (c == '>')
         {
             // Parse error
-            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
-            m_CurrentAttributeName.clear();
-            m_CurrentAttributeValue.clear();
+            StoreCurrentAttribute();
             EmitToken(m_CurrentToken);
             m_CurrentState = State::Data;
         }
@@ -281,9 +371,7 @@ namespace HtmlParser
     {
         if (c == '"')
         {
-            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
-            m_CurrentAttributeName.clear();
-            m_CurrentAttributeValue.clear();
+            StoreCurrentAttribute();
             m_CurrentState = State::AfterAttributeValueQuoted;
         }
         else
@@ -296,9 +384,7 @@ namespace HtmlParser
     {
         if (c == '\'')
         {
-            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
-            m_CurrentAttributeName.clear();
-            m_CurrentAttributeValue.clear();
+            StoreCurrentAttribute();
             m_CurrentState = State::AfterAttributeValueQuoted;
         }
         else
@@ -311,16 +397,12 @@ namespace HtmlParser
     {
         if (IsWhitespace(c))
         {
-            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
-            m_CurrentAttributeName.clear();
-            m_CurrentAttributeValue.clear();
+            StoreCurrentAttribute();
             m_CurrentState = State::AfterAttributeValueUnquoted;
         }
         else if (c == '>')
         {
-            m_CurrentToken.Attributes[m_CurrentAttributeName] = m_CurrentAttributeValue;
-            m_CurrentAttributeName.clear();
-            m_CurrentAttributeValue.clear();
+            StoreCurrentAttribute();
             EmitToken(m_CurrentToken);
             m_CurrentState = State::Data;
         }

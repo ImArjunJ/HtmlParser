@@ -51,10 +51,13 @@ namespace HtmlParser
         };
 
         void EmitToken(const Token& Token);
+        void EmitCurrentText();
+        void StoreCurrentAttribute();
         void ReconsumeChar();
 
         bool IsWhitespace(char c) const;
         bool IsAlpha(char c) const;
+        bool StartsWithIgnoreCase(size_t Position, const std::string& Value) const;
 
         // State handling functions
         void HandleDataState(char c);
@@ -77,6 +80,7 @@ namespace HtmlParser
         State m_CurrentState;
 
         Token m_CurrentToken;
+        std::string m_CurrentText;
         std::string m_CurrentAttributeName;
         std::string m_CurrentAttributeValue;
 

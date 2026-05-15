@@ -45,3 +45,29 @@ TEST(DOMTest, GetElementsByTagName)
     auto ListItems = DOM.GetElementsByTagName("li");
     ASSERT_EQ(ListItems.size(), 3);
 }
+
+TEST(DOMTest, SetTextContentReplacesChildren)
+{
+    HtmlParser::Parser Parser;
+    HtmlParser::DOM DOM = Parser.Parse("<div><span>Old</span><em>Text</em></div>");
+
+    auto Element = DOM.GetElementsByTagName("div").front();
+    Element->SetTextContent("New text");
+
+    ASSERT_EQ(Element->Children.size(), 1);
+    ASSERT_EQ(Element->Children.front()->Type, HtmlParser::NodeType::Text);
+    ASSERT_EQ(Element->GetTextContent(), "New text");
+}
+
+TEST(DOMTest, RemoveChildDetachesNode)
+{
+    HtmlParser::Parser Parser;
+    HtmlParser::DOM DOM = Parser.Parse("<ul><li id=\"remove\">Remove</li><li>Keep</li></ul>");
+
+    auto Parent = DOM.GetElementsByTagName("ul").front();
+    auto Child = DOM.GetElementById("remove");
+
+    ASSERT_TRUE(Parent->RemoveChild(Child));
+    ASSERT_EQ(Parent->Children.size(), 1);
+    ASSERT_TRUE(Child->Parent.expired());
+}
