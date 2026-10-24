@@ -1,35 +1,20 @@
-#include <HtmlParser/Parser.hpp>
+#include <HtmlParser/HtmlParser.hpp>
 #include <iostream>
 
 int main()
 {
-    // Malformed HTML with missing closing tags
-    std::string Html = "<div><p>Unclosed paragraph";
-
     HtmlParser::Parser Parser;
+    const auto Result = Parser.ParseWithDiagnostics("<div>\n</unexpected></div>");
+    for (const auto& Error : Result.Errors)
+        std::cout << Error.Line << ':' << Error.Column << ": " << Error.Message << '\n';
 
-    // Non-strict mode (default behavior)
-    try
-    {
-        HtmlParser::DOM DOM = Parser.Parse(Html);
-        std::cout << "Parsed HTML in non-strict mode.\n";
-    }
-    catch (const std::exception& e)
-    {
-        std::cerr << "Error parsing HTML in non-strict mode: " << e.what() << "\n";
-    }
-
-    // Strict mode
     Parser.SetStrict(true);
     try
     {
-        HtmlParser::DOM dom = Parser.Parse(Html);
-        std::cout << "Parsed HTML in strict mode.\n";
+        Parser.Parse("<p>Unclosed paragraph");
     }
-    catch (const std::exception& e)
+    catch (const HtmlParser::ParseException& Error)
     {
-        std::cerr << "Error parsing HTML in strict mode: " << e.what() << "\n";
+        std::cout << Error.what() << '\n';
     }
-
-    return 0;
 }
