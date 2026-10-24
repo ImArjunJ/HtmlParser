@@ -230,3 +230,13 @@ TEST(ParserTest, ReusesOneParserAcrossConcurrentCalls)
     for (auto& Task : Tasks)
         EXPECT_TRUE(Task.get());
 }
+
+TEST(TokenizerTest, PreservesLargeTextRunsAndUnknownReferences)
+{
+    const std::string Prefix(100000, 'x');
+    HtmlParser::Tokenizer Tokens(Prefix + " < 3 << /tail &amp; end <b>");
+    EXPECT_EQ(Tokens.NextToken().Data, Prefix + " < 3 << /tail & end ");
+    EXPECT_EQ(Tokens.NextToken().Data, "b");
+    const std::string Unknown = "&" + std::string(100000, 'x') + ";";
+    EXPECT_EQ(HtmlParser::Tokenizer(Unknown).NextToken().Data, Unknown);
+}
