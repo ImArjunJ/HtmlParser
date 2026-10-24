@@ -153,3 +153,15 @@ TEST(DOMTest, EmptyAndNullDocumentsAreUsable)
     EXPECT_TRUE(Document.GetElementsByTagName("*").empty());
     EXPECT_EQ(Document.GetElementById("missing"), nullptr);
 }
+
+TEST(DOMTest, SupportsMutationArgumentsBorrowedFromChildren)
+{
+    auto Parent = std::make_shared<HtmlParser::Node>(HtmlParser::NodeType::Element);
+    Parent->AppendChild(std::make_shared<HtmlParser::Node>(HtmlParser::NodeType::Element));
+    Parent->AppendChild(std::make_shared<HtmlParser::Node>(HtmlParser::NodeType::Element));
+    const auto First = Parent->Children.front();
+    Parent->AppendChild(Parent->Children.front());
+    EXPECT_EQ(Parent->Children.back(), First);
+    Parent->InsertBefore(Parent->Children.back(), Parent->Children.front());
+    EXPECT_EQ(Parent->Children.front(), First);
+}

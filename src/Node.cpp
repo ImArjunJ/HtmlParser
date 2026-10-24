@@ -32,8 +32,11 @@ namespace HtmlParser
         InsertBefore(Child, nullptr);
     }
 
-    void Node::InsertBefore(const std::shared_ptr<Node>& Child, const std::shared_ptr<Node>& Reference)
+    void Node::InsertBefore(const std::shared_ptr<Node>& ChildNode, const std::shared_ptr<Node>& ReferenceNode)
     {
+        // Arguments may refer to entries in Children, which insertion can invalidate.
+        const auto Child = ChildNode;
+        const auto Reference = ReferenceNode;
         if (!Child)
             throw std::invalid_argument("Cannot insert a null child");
         if (Type != NodeType::Document && Type != NodeType::Element)
