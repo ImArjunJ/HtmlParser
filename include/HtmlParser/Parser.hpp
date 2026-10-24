@@ -40,4 +40,13 @@ namespace HtmlParser
     private:
         ParseOptions m_Options;
     };
+    inline DOM Parse(std::string_view Input, ParseOptions Options = {})
+    {
+        return Parser(Options).Parse(Input);
+    }
+
+    inline DOM ParseFragment(std::string_view Input, std::string_view ContextTag = "body", ParseOptions Options = {})
+    {
+        return Parser(Options).ParseFragment(Input, ContextTag);
+    }
 } // namespace HtmlParser
