@@ -1,473 +1,255 @@
 #include <HtmlParser/Tokenizer.hpp>
 
-#include <cctype>
-
 #include "Utilities.hpp"
 
 namespace HtmlParser
 {
-    Tokenizer::Tokenizer(const std::string& InputStr) : m_Input(InputStr), m_Position(0), m_CurrentState(State::Data)
+    namespace
     {
+        bool IsAlpha(char Value)
+        {
+            return (Value >= 'a' && Value <= 'z') || (Value >= 'A' && Value <= 'Z');
+        }
+    }
+
+    Tokenizer::Tokenizer(std::string_view Input) : m_Storage(Input) {}
+    Tokenizer::Tokenizer(std::string_view Input, bool Borrow) : m_View(Input), m_Borrowed(Borrow) {}
+    std::string_view Tokenizer::Input() const noexcept { return m_Borrowed ? m_View : std::string_view(m_Storage); }
+    const std::vector<Token>& Tokenizer::GetTokens() const noexcept { return m_Tokens; }
+    const std::vector<ParseError>& Tokenizer::GetErrors() const noexcept { return m_Errors; }
+
+    void Tokenizer::Reset()
+    {
+        m_Position = 0;
+        m_TextTag.clear();
+        m_DecodeText = true;
+        m_Tokens.clear();
+        m_Errors.clear();
     }
 
     void Tokenizer::Tokenize()
     {
-        m_Position = 0;
-        m_CurrentState = State::Data;
-        m_CurrentText.clear();
-        m_CurrentAttributeName.clear();
-        m_CurrentAttributeValue.clear();
-        m_Tokens.clear();
+        Reset();
+        for (auto Current = NextToken(); Current.Type != TokenType::EOFToken; Current = NextToken())
+            m_Tokens.push_back(std::move(Current));
+    }
 
-        while (m_Position < m_Input.size())
+    void Tokenizer::SetTextMode(std::string_view Tag)
+    {
+        if (Utils::IsRawTextElement(Tag) || Utils::EqualsIgnoreCase(Tag, "title") || Utils::EqualsIgnoreCase(Tag, "textarea"))
         {
-            char c = m_Input[m_Position++];
-            switch (m_CurrentState)
+            m_TextTag = Utils::ToLower(std::string(Tag));
+            m_DecodeText = m_TextTag == "title" || m_TextTag == "textarea";
+        }
+    }
+
+    bool Tokenizer::StartsWith(std::size_t Offset, std::string_view Value) const
+    {
+        return Offset <= Input().size() && Utils::EqualsIgnoreCase(Input().substr(Offset, Value.size()), Value);
+    }
+
+    void Tokenizer::Error(std::size_t Offset, std::string Message)
+    {
+        if (m_Errors.size() < 100)
+            m_Errors.push_back(Utils::MakeError(Input(), Offset, std::move(Message)));
+    }
+
+    Token Tokenizer::NextToken()
+    {
+        const auto Source = Input();
+        if (m_Position >= Source.size())
+            return {TokenType::EOFToken, {}, {}, false, m_Position, m_Position};
+        if (!m_TextTag.empty() || Source[m_Position] != '<')
+            return ReadText();
+        if (m_Position + 1 < Source.size())
+        {
+            if (Source[m_Position + 1] == '!' || Source[m_Position + 1] == '?')
+                return ReadDeclaration();
+            const auto Name = m_Position + (Source[m_Position + 1] == '/' ? 2 : 1);
+            if (Name < Source.size() && IsAlpha(Source[Name]))
+                return ReadTag();
+        }
+        return ReadText();
+    }
+
+    Token Tokenizer::ReadText()
+    {
+        const auto Source = Input();
+        const auto Start = m_Position;
+        const bool Decode = m_DecodeText;
+        if (!m_TextTag.empty())
+        {
+            auto End = m_Position;
+            if (m_TextTag != "plaintext")
             {
-            case State::Data:
-                HandleDataState(c);
-                break;
-            case State::TagOpen:
-                HandleTagOpenState(c);
-                break;
-            case State::TagName:
-                HandleTagNameState(c);
-                break;
-            case State::EndTagOpen:
-                HandleEndTagOpenState(c);
-                break;
-            case State::SelfClosingStartTag:
-                HandleSelfClosingStartTagState(c);
-                break;
-            case State::BeforeAttributeName:
-                HandleBeforeAttributeNameState(c);
-                break;
-            case State::AttributeName:
-                HandleAttributeNameState(c);
-                break;
-            case State::AfterAttributeName:
-                HandleAfterAttributeNameState(c);
-                break;
-            case State::BeforeAttributeValue:
-                HandleBeforeAttributeValueState(c);
-                break;
-            case State::AttributeValueDoubleQuoted:
-                HandleAttributeValueDoubleQuotedState(c);
-                break;
-            case State::AttributeValueSingleQuoted:
-                HandleAttributeValueSingleQuotedState(c);
-                break;
-            case State::AttributeValueUnquoted:
-                HandleAttributeValueUnquotedState(c);
-                break;
-            case State::AfterAttributeValueQuoted:
-                HandleAfterAttributeValueQuotedState(c);
-                break;
-            case State::AfterAttributeValueUnquoted:
-                HandleAfterAttributeValueUnquotedState(c);
-                break;
+                while ((End = Source.find('<', End)) != std::string_view::npos)
+                {
+                    const auto AfterName = End + 2 + m_TextTag.size();
+                    if (End + 1 < Source.size() && Source[End + 1] == '/' && StartsWith(End + 2, m_TextTag) &&
+                        AfterName < Source.size() && (Utils::IsWhitespace(Source[AfterName]) || Source[AfterName] == '/' || Source[AfterName] == '>'))
+                        break;
+                    ++End;
+                }
             }
-        }
-        EmitCurrentText();
-    }
-
-    const std::vector<Token>& Tokenizer::GetTokens() const
-    {
-        return m_Tokens;
-    }
-
-    void Tokenizer::EmitToken(const Token& Token)
-    {
-        m_Tokens.push_back(Token);
-    }
-
-    void Tokenizer::EmitCurrentText()
-    {
-        if (m_CurrentText.empty())
-        {
-            return;
-        }
-
-        Token Token;
-        Token.Type = TokenType::Character;
-        Token.Data = Utils::DecodeHtml(m_CurrentText);
-        EmitToken(Token);
-        m_CurrentText.clear();
-    }
-
-    void Tokenizer::StoreCurrentAttribute()
-    {
-        if (!m_CurrentAttributeName.empty())
-        {
-            m_CurrentToken.Attributes[Utils::ToLower(m_CurrentAttributeName)] = Utils::DecodeHtml(m_CurrentAttributeValue);
-        }
-        m_CurrentAttributeName.clear();
-        m_CurrentAttributeValue.clear();
-    }
-
-    void Tokenizer::ReconsumeChar()
-    {
-        --m_Position;
-    }
-
-    bool Tokenizer::IsWhitespace(char c) const
-    {
-        return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f';
-    }
-
-    bool Tokenizer::IsAlpha(char c) const
-    {
-        return std::isalpha(static_cast<unsigned char>(c));
-    }
-
-    bool Tokenizer::StartsWithIgnoreCase(size_t Position, const std::string& Value) const
-    {
-        if (Position + Value.size() > m_Input.size())
-        {
-            return false;
-        }
-
-        for (size_t i = 0; i < Value.size(); ++i)
-        {
-            const auto InputChar = static_cast<unsigned char>(m_Input[Position + i]);
-            const auto ValueChar = static_cast<unsigned char>(Value[i]);
-            if (std::tolower(InputChar) != std::tolower(ValueChar))
+            else
+                End = std::string_view::npos;
+            m_Position = End == std::string_view::npos ? Source.size() : End;
+            if (End != std::string_view::npos)
             {
-                return false;
+                m_TextTag.clear();
+                m_DecodeText = true;
+                if (m_Position == Start)
+                    return ReadTag();
             }
-        }
-        return true;
-    }
-
-    // Implement state handling functions
-    void Tokenizer::HandleDataState(char c)
-    {
-        if (c == '<')
-        {
-            EmitCurrentText();
-            m_CurrentState = State::TagOpen;
         }
         else
         {
-            m_CurrentText += c;
+            // A literal '<' must make progress even when it does not open a tag.
+            ++m_Position;
+            while (m_Position < Source.size())
+            {
+                if (Source[m_Position] == '<')
+                {
+                    auto Name = m_Position + 1;
+                    if (Name < Source.size() && (Source[Name] == '!' || Source[Name] == '?'))
+                        break;
+                    if (Name < Source.size() && Source[Name] == '/')
+                        ++Name;
+                    if (Name < Source.size() && IsAlpha(Source[Name]))
+                        break;
+                }
+                ++m_Position;
+            }
         }
+        auto Text = Utils::NormalizeText(Source.substr(Start, m_Position - Start));
+        return {TokenType::Character, Decode ? Utils::DecodeHtml(Text) : std::move(Text), {}, false, Start, m_Position};
     }
 
-    void Tokenizer::HandleTagOpenState(char c)
+    Token Tokenizer::ReadTag()
     {
-        if (c == '/')
+        const auto Source = Input();
+        Token Result;
+        Result.Offset = m_Position++;
+        Result.Type = TokenType::StartTag;
+        if (Source[m_Position] == '/')
         {
-            m_CurrentState = State::EndTagOpen;
+            Result.Type = TokenType::EndTag;
+            ++m_Position;
         }
-        else if (IsAlpha(c))
+        const auto NameStart = m_Position;
+        while (m_Position < Source.size() && !Utils::IsWhitespace(Source[m_Position]) && Source[m_Position] != '/' && Source[m_Position] != '>')
+            ++m_Position;
+        Result.Data = Utils::ToLower(Utils::NormalizeText(Source.substr(NameStart, m_Position - NameStart)));
+        bool Closed = false;
+        while (m_Position < Source.size())
         {
-            m_CurrentToken = Token();
-            m_CurrentToken.Type = TokenType::StartTag;
-            m_CurrentToken.Data = c;
-            m_CurrentState = State::TagName;
-        }
-        else if (c == '!')
-        {
-            if (m_Position + 2 <= m_Input.size() && m_Input.compare(m_Position, 2, "--") == 0)
+            while (m_Position < Source.size() && Utils::IsWhitespace(Source[m_Position]))
+                ++m_Position;
+            if (m_Position >= Source.size())
+                break;
+            if (Source[m_Position] == '>')
             {
-                const size_t CommentStart = m_Position + 2;
-                const size_t CommentEnd = m_Input.find("-->", CommentStart);
-
-                Token Token;
-                Token.Type = TokenType::Comment;
-                if (CommentEnd == std::string::npos)
-                {
-                    Token.Data = m_Input.substr(CommentStart);
-                    m_Position = m_Input.size();
-                }
-                else
-                {
-                    Token.Data = m_Input.substr(CommentStart, CommentEnd - CommentStart);
-                    m_Position = CommentEnd + 3;
-                }
-                EmitToken(Token);
+                ++m_Position;
+                Closed = true;
+                break;
             }
-            else if (StartsWithIgnoreCase(m_Position, "DOCTYPE"))
+            if (Source[m_Position] == '/')
             {
-                const size_t DoctypeStart = m_Position + 7;
-                const size_t DoctypeEnd = m_Input.find('>', DoctypeStart);
+                ++m_Position;
+                if (m_Position < Source.size() && Source[m_Position] == '>')
+                {
+                    ++m_Position;
+                    Result.SelfClosing = true;
+                    Closed = true;
+                    break;
+                }
+                Error(m_Position - 1, "Unexpected slash in tag");
+                continue;
+            }
+            const auto AttributeStart = m_Position;
+            // An initial '=' is part of a malformed name, and must still be consumed.
+            ++m_Position;
+            while (m_Position < Source.size() && !Utils::IsWhitespace(Source[m_Position]) &&
+                Source[m_Position] != '=' && Source[m_Position] != '/' && Source[m_Position] != '>')
+                ++m_Position;
+            auto Name = Utils::ToLower(Utils::NormalizeText(Source.substr(AttributeStart, m_Position - AttributeStart)));
+            while (m_Position < Source.size() && Utils::IsWhitespace(Source[m_Position]))
+                ++m_Position;
+            std::string Value;
+            if (m_Position < Source.size() && Source[m_Position] == '=')
+            {
+                ++m_Position;
+                while (m_Position < Source.size() && Utils::IsWhitespace(Source[m_Position]))
+                    ++m_Position;
+                const char Quote = m_Position < Source.size() && (Source[m_Position] == '\'' || Source[m_Position] == '"') ? Source[m_Position++] : '\0';
+                const auto ValueStart = m_Position;
+                while (m_Position < Source.size() && (Quote ? Source[m_Position] != Quote : !Utils::IsWhitespace(Source[m_Position]) && Source[m_Position] != '>'))
+                    ++m_Position;
+                Value = Utils::DecodeHtml(Utils::NormalizeText(Source.substr(ValueStart, m_Position - ValueStart)), true);
+                if (Quote && m_Position < Source.size())
+                    ++m_Position;
+            }
+            if (Result.Type == TokenType::StartTag && !Result.Attributes.emplace(std::move(Name), std::move(Value)).second)
+                Error(AttributeStart, "Duplicate attribute");
+        }
+        Result.EndOffset = m_Position;
+        if (!Closed)
+        {
+            Error(Result.Offset, "Unterminated tag");
+            return {TokenType::EOFToken, {}, {}, false, m_Position, m_Position};
+        }
+        if (Result.Type == TokenType::StartTag)
+            SetTextMode(Result.Data);
+        return Result;
+    }
 
-                Token Token;
-                Token.Type = TokenType::DOCTYPE;
-                if (DoctypeEnd == std::string::npos)
-                {
-                    Token.Data = Utils::Trim(m_Input.substr(DoctypeStart));
-                    m_Position = m_Input.size();
-                }
-                else
-                {
-                    Token.Data = Utils::Trim(m_Input.substr(DoctypeStart, DoctypeEnd - DoctypeStart));
-                    m_Position = DoctypeEnd + 1;
-                }
-                EmitToken(Token);
+    Token Tokenizer::ReadDeclaration()
+    {
+        const auto Source = Input();
+        Token Result;
+        Result.Offset = m_Position;
+        Result.Type = TokenType::Comment;
+        if (Source.substr(m_Position, 4) == "<!--")
+        {
+            const auto Start = m_Position + 4;
+            auto End = Source.find("-->", Start);
+            auto Alternate = Source.find("--!>", Start);
+            if (Alternate != std::string_view::npos && (End == std::string_view::npos || Alternate < End))
+            {
+                End = Alternate;
+                Error(End, "Incorrectly closed comment");
+            }
+            if (End == std::string_view::npos)
+            {
+                Error(Result.Offset, "Unterminated comment");
+                Result.Data = Utils::NormalizeText(Source.substr(Start));
+                m_Position = Source.size();
             }
             else
             {
-                m_CurrentText += "<!";
+                Result.Data = Utils::NormalizeText(Source.substr(Start, End - Start));
+                m_Position = End + (End == Alternate ? 4 : 3);
             }
-            m_CurrentState = State::Data;
         }
         else
         {
-            // Parse error
-            m_CurrentState = State::Data;
-            m_CurrentText += '<';
-            ReconsumeChar();
+            const bool Doctype = StartsWith(m_Position + 2, "doctype");
+            const auto Start = m_Position + (Doctype ? 9 : 2);
+            auto End = Source.find('>', Start);
+            if (End == std::string_view::npos)
+            {
+                Error(Result.Offset, "Unterminated declaration");
+                End = Source.size();
+            }
+            Result.Type = Doctype ? TokenType::DOCTYPE : TokenType::Comment;
+            Result.Data = Utils::NormalizeText(Source.substr(Start, End - Start));
+            if (Doctype)
+                Result.Data = Utils::Trim(Result.Data);
+            else
+                Error(Result.Offset, "Unknown declaration");
+            m_Position = End < Source.size() ? End + 1 : End;
         }
-    }
-
-    void Tokenizer::HandleTagNameState(char c)
-    {
-        if (IsWhitespace(c))
-        {
-            m_CurrentState = State::BeforeAttributeName;
-        }
-        else if (c == '/')
-        {
-            m_CurrentState = State::SelfClosingStartTag;
-        }
-        else if (c == '>')
-        {
-            EmitToken(m_CurrentToken);
-            m_CurrentState = State::Data;
-        }
-        else
-        {
-            m_CurrentToken.Data += c;
-        }
-    }
-
-    void Tokenizer::HandleEndTagOpenState(char c)
-    {
-        if (IsAlpha(c))
-        {
-            m_CurrentToken = Token();
-            m_CurrentToken.Type = TokenType::EndTag;
-            m_CurrentToken.Data = c;
-            m_CurrentState = State::TagName;
-        }
-        else
-        {
-            // Parse error
-            m_CurrentState = State::Data;
-        }
-    }
-
-    void Tokenizer::HandleSelfClosingStartTagState(char c)
-    {
-        if (c == '>')
-        {
-            m_CurrentToken.SelfClosing = true;
-            EmitToken(m_CurrentToken);
-            m_CurrentState = State::Data;
-        }
-        else
-        {
-            // Parse error
-            m_CurrentState = State::BeforeAttributeName;
-            ReconsumeChar();
-        }
-    }
-
-    void Tokenizer::HandleBeforeAttributeNameState(char c)
-    {
-        if (IsWhitespace(c))
-        {
-            // Ignore
-        }
-        else if (c == '/' || c == '>')
-        {
-            m_CurrentState = State::AfterAttributeName;
-            ReconsumeChar();
-        }
-        else
-        {
-            m_CurrentAttributeName.clear();
-            m_CurrentAttributeValue.clear();
-            m_CurrentState = State::AttributeName;
-            ReconsumeChar();
-        }
-    }
-
-    void Tokenizer::HandleAttributeNameState(char c)
-    {
-        if (IsWhitespace(c) || c == '/' || c == '>')
-        {
-            m_CurrentState = State::AfterAttributeName;
-            ReconsumeChar();
-        }
-        else if (c == '=')
-        {
-            m_CurrentState = State::BeforeAttributeValue;
-        }
-        else
-        {
-            m_CurrentAttributeName += c;
-        }
-    }
-
-    void Tokenizer::HandleAfterAttributeNameState(char c)
-    {
-        if (IsWhitespace(c))
-        {
-            // Ignore
-        }
-        else if (c == '/')
-        {
-            m_CurrentState = State::SelfClosingStartTag;
-        }
-        else if (c == '=')
-        {
-            m_CurrentState = State::BeforeAttributeValue;
-        }
-        else if (c == '>')
-        {
-            StoreCurrentAttribute();
-            EmitToken(m_CurrentToken);
-            m_CurrentState = State::Data;
-        }
-        else
-        {
-            StoreCurrentAttribute();
-            m_CurrentState = State::AttributeName;
-            ReconsumeChar();
-        }
-    }
-
-    void Tokenizer::HandleBeforeAttributeValueState(char c)
-    {
-        if (IsWhitespace(c))
-        {
-            // Ignore
-        }
-        else if (c == '"')
-        {
-            m_CurrentState = State::AttributeValueDoubleQuoted;
-        }
-        else if (c == '\'')
-        {
-            m_CurrentState = State::AttributeValueSingleQuoted;
-        }
-        else if (c == '>')
-        {
-            // Parse error
-            StoreCurrentAttribute();
-            EmitToken(m_CurrentToken);
-            m_CurrentState = State::Data;
-        }
-        else
-        {
-            m_CurrentState = State::AttributeValueUnquoted;
-            ReconsumeChar();
-        }
-    }
-
-    void Tokenizer::HandleAttributeValueDoubleQuotedState(char c)
-    {
-        if (c == '"')
-        {
-            StoreCurrentAttribute();
-            m_CurrentState = State::AfterAttributeValueQuoted;
-        }
-        else
-        {
-            m_CurrentAttributeValue += c;
-        }
-    }
-
-    void Tokenizer::HandleAttributeValueSingleQuotedState(char c)
-    {
-        if (c == '\'')
-        {
-            StoreCurrentAttribute();
-            m_CurrentState = State::AfterAttributeValueQuoted;
-        }
-        else
-        {
-            m_CurrentAttributeValue += c;
-        }
-    }
-
-    void Tokenizer::HandleAttributeValueUnquotedState(char c)
-    {
-        if (IsWhitespace(c))
-        {
-            StoreCurrentAttribute();
-            m_CurrentState = State::AfterAttributeValueUnquoted;
-        }
-        else if (c == '>')
-        {
-            StoreCurrentAttribute();
-            EmitToken(m_CurrentToken);
-            m_CurrentState = State::Data;
-        }
-        else if (c == '&')
-        {
-            m_CurrentAttributeValue += c;
-        }
-        else if (c == '\0')
-        {
-            // Parse error
-        }
-        else if (c == '"' || c == '\'' || c == '<' || c == '=' || c == '`')
-        {
-            // Parse error
-            m_CurrentAttributeValue += c;
-        }
-        else
-        {
-            m_CurrentAttributeValue += c;
-        }
-    }
-
-    void Tokenizer::HandleAfterAttributeValueQuotedState(char c)
-    {
-        if (IsWhitespace(c))
-        {
-            m_CurrentState = State::BeforeAttributeName;
-        }
-        else if (c == '/')
-        {
-            m_CurrentState = State::SelfClosingStartTag;
-        }
-        else if (c == '>')
-        {
-            EmitToken(m_CurrentToken);
-            m_CurrentState = State::Data;
-        }
-        else
-        {
-            // Parse error
-            m_CurrentState = State::BeforeAttributeName;
-            ReconsumeChar();
-        }
-    }
-
-    void Tokenizer::HandleAfterAttributeValueUnquotedState(char c)
-    {
-        if (IsWhitespace(c))
-        {
-            m_CurrentState = State::BeforeAttributeName;
-        }
-        else if (c == '/')
-        {
-            m_CurrentState = State::SelfClosingStartTag;
-        }
-        else if (c == '>')
-        {
-            EmitToken(m_CurrentToken);
-            m_CurrentState = State::Data;
-        }
-        else
-        {
-            // Parse error
-            m_CurrentState = State::BeforeAttributeName;
-            ReconsumeChar();
-        }
+        Result.EndOffset = m_Position;
+        return Result;
     }
 } // namespace HtmlParser

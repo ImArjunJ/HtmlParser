@@ -1,89 +1,57 @@
 #pragma once
 
+#include <cstddef>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
+#include "Diagnostics.hpp"
+
 namespace HtmlParser
 {
-    enum class TokenType
-    {
-        DOCTYPE,
-        StartTag,
-        EndTag,
-        Comment,
-        Character,
-        EOFToken
-    };
+    enum class TokenType { DOCTYPE, StartTag, EndTag, Comment, Character, EOFToken };
 
     struct Token
     {
-        TokenType Type;
+        TokenType Type = TokenType::EOFToken;
         std::string Data;
         std::unordered_map<std::string, std::string> Attributes;
         bool SelfClosing = false;
+        std::size_t Offset = 0;
+        std::size_t EndOffset = 0;
     };
 
     class Tokenizer
     {
     public:
-        Tokenizer(const std::string& InputStr);
+        // The public tokenizer owns its input; temporary strings are safe.
+        explicit Tokenizer(std::string_view Input);
+        Token NextToken();
+        void Reset();
         void Tokenize();
-        const std::vector<Token>& GetTokens() const;
+        const std::vector<Token>& GetTokens() const noexcept;
+        const std::vector<ParseError>& GetErrors() const noexcept;
+        void SetTextMode(std::string_view Tag);
 
     private:
-        enum class State
-        {
-            Data,
-            TagOpen,
-            TagName,
-            EndTagOpen,
-            SelfClosingStartTag,
-            BeforeAttributeName,
-            AttributeName,
-            AfterAttributeName,
-            BeforeAttributeValue,
-            AttributeValueDoubleQuoted,
-            AttributeValueSingleQuoted,
-            AttributeValueUnquoted,
-            AfterAttributeValueQuoted,
-            AfterAttributeValueUnquoted,
-        };
+        friend class Parser;
+        // Parser borrows input only for the duration of a synchronous parse.
+        Tokenizer(std::string_view Input, bool Borrow);
+        std::string_view Input() const noexcept;
+        Token ReadTag();
+        Token ReadDeclaration();
+        Token ReadText();
+        void Error(std::size_t Offset, std::string Message);
+        bool StartsWith(std::size_t Offset, std::string_view Value) const;
 
-        void EmitToken(const Token& Token);
-        void EmitCurrentText();
-        void StoreCurrentAttribute();
-        void ReconsumeChar();
-
-        bool IsWhitespace(char c) const;
-        bool IsAlpha(char c) const;
-        bool StartsWithIgnoreCase(size_t Position, const std::string& Value) const;
-
-        // State handling functions
-        void HandleDataState(char c);
-        void HandleTagOpenState(char c);
-        void HandleTagNameState(char c);
-        void HandleEndTagOpenState(char c);
-        void HandleSelfClosingStartTagState(char c);
-        void HandleBeforeAttributeNameState(char c);
-        void HandleAttributeNameState(char c);
-        void HandleAfterAttributeNameState(char c);
-        void HandleBeforeAttributeValueState(char c);
-        void HandleAttributeValueDoubleQuotedState(char c);
-        void HandleAttributeValueSingleQuotedState(char c);
-        void HandleAttributeValueUnquotedState(char c);
-        void HandleAfterAttributeValueQuotedState(char c);
-        void HandleAfterAttributeValueUnquotedState(char c);
-
-        std::string m_Input;
-        size_t m_Position;
-        State m_CurrentState;
-
-        Token m_CurrentToken;
-        std::string m_CurrentText;
-        std::string m_CurrentAttributeName;
-        std::string m_CurrentAttributeValue;
-
+        std::string m_Storage;
+        std::string_view m_View;
+        bool m_Borrowed = false;
+        std::size_t m_Position = 0;
+        std::string m_TextTag;
+        bool m_DecodeText = true;
         std::vector<Token> m_Tokens;
+        std::vector<ParseError> m_Errors;
     };
-} // namespace HtmlParser
+}
