@@ -235,12 +235,22 @@ namespace HtmlParser
         {
             const bool Doctype = StartsWith(m_Position + 2, "doctype");
             const auto Start = m_Position + (Doctype ? 9 : 2);
-            auto End = Source.find('>', Start);
-            if (End == std::string_view::npos)
+            auto End = Start;
+            char Quote = '\0';
+            for (; End < Source.size(); ++End)
             {
-                Error(Result.Offset, "Unterminated declaration");
-                End = Source.size();
+                if (Doctype && (Source[End] == '\'' || Source[End] == '"'))
+                {
+                    if (!Quote)
+                        Quote = Source[End];
+                    else if (Source[End] == Quote)
+                        Quote = '\0';
+                }
+                if (!Quote && Source[End] == '>')
+                    break;
             }
+            if (End == Source.size())
+                Error(Result.Offset, "Unterminated declaration");
             Result.Type = Doctype ? TokenType::DOCTYPE : TokenType::Comment;
             Result.Data = Utils::NormalizeText(Source.substr(Start, End - Start));
             if (Doctype)

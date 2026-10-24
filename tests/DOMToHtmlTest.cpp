@@ -69,3 +69,22 @@ TEST(DOMToHtmlTest, PreservesRawTextWhenSerializing)
     Element->SetTextContent("if (a < b && c > d) run();");
     EXPECT_EQ(Element->ToHtml(), "<script>if (a < b && c > d) run();</script>");
 }
+
+TEST(DOMToHtmlTest, RoundTripsPreformattedLeadingNewlines)
+{
+    const HtmlParser::Parser Parser;
+    auto Document = Parser.Parse("<pre>\n\ntext</pre><textarea>\n\nvalue</textarea><listing>\n\nlist</listing>");
+    auto RoundTrip = Parser.Parse(Document.ToHtml());
+    EXPECT_EQ(Document.Root()->GetTextContent(), RoundTrip.Root()->GetTextContent());
+    EXPECT_EQ(Document.ToHtml(), RoundTrip.ToHtml());
+}
+
+TEST(DOMToHtmlTest, RoundTripsQuotedDoctypesAttributesAndRawText)
+{
+    const HtmlParser::Parser Parser;
+    auto Document = Parser.Parse("<!DOCTYPE html PUBLIC 'a>b'><html lang=en><head><title>A &lt; B</title><script>if (a < b && c) f();</script></head><body><!--note--><p x='&quot;&amp;&lt;'>&copy; &NotEqualTilde;</p></body></html>");
+    auto RoundTrip = Parser.Parse(Document.ToHtml());
+    EXPECT_EQ(Document.ToHtml(), RoundTrip.ToHtml());
+    EXPECT_EQ(Document.Root()->GetTextContent(), RoundTrip.Root()->GetTextContent());
+    EXPECT_EQ(RoundTrip.SelectFirst("p")->GetAttribute("x"), "\"&<");
+}

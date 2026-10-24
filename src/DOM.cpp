@@ -142,6 +142,10 @@ namespace HtmlParser
                     Html += '>';
                     if (Utils::IsVoidElement(Current->Tag))
                         continue;
+                    if ((Utils::EqualsIgnoreCase(Current->Tag, "pre") || Utils::EqualsIgnoreCase(Current->Tag, "textarea") ||
+                        Utils::EqualsIgnoreCase(Current->Tag, "listing")) && !Current->Children.empty() && Current->Children.front() &&
+                        Current->Children.front()->Type == NodeType::Text && Current->Children.front()->Text.starts_with('\n'))
+                        Html += '\n';
                     Pending.push_back({Current, true, false});
                     break;
                 }
