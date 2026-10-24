@@ -19,12 +19,18 @@ namespace HtmlParser
     {
     public:
         explicit ParseException(ParseError Error)
-            : std::runtime_error("Parse error at " + std::to_string(Error.Line) + ":" +
-                std::to_string(Error.Column) + ": " + Error.Message), m_Error(std::move(Error)) {}
+            : std::runtime_error("Parse error at " + std::to_string(Error.Line) + ":" + std::to_string(Error.Column) +
+                                 ": " + Error.Message),
+              m_Error(std::move(Error))
+        {
+        }
 
-        const ParseError& Error() const noexcept { return m_Error; }
+        const ParseError& Error() const noexcept
+        {
+            return m_Error;
+        }
 
     private:
         ParseError m_Error;
     };
-}
+} // namespace HtmlParser

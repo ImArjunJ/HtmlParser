@@ -10,7 +10,15 @@
 
 namespace HtmlParser
 {
-    enum class TokenType { DOCTYPE, StartTag, EndTag, Comment, Character, EOFToken };
+    enum class TokenType
+    {
+        DOCTYPE,
+        StartTag,
+        EndTag,
+        Comment,
+        Character,
+        EOFToken
+    };
 
     struct Token
     {
@@ -54,4 +62,4 @@ namespace HtmlParser
         std::vector<Token> m_Tokens;
         std::vector<ParseError> m_Errors;
     };
-}
+} // namespace HtmlParser

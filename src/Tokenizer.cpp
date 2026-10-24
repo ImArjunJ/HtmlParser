@@ -10,13 +10,22 @@ namespace HtmlParser
         {
             return (Value >= 'a' && Value <= 'z') || (Value >= 'A' && Value <= 'Z');
         }
-    }
+    } // namespace
 
     Tokenizer::Tokenizer(std::string_view Input) : m_Storage(Input) {}
     Tokenizer::Tokenizer(std::string_view Input, bool Borrow) : m_View(Input), m_Borrowed(Borrow) {}
-    std::string_view Tokenizer::Input() const noexcept { return m_Borrowed ? m_View : std::string_view(m_Storage); }
-    const std::vector<Token>& Tokenizer::GetTokens() const noexcept { return m_Tokens; }
-    const std::vector<ParseError>& Tokenizer::GetErrors() const noexcept { return m_Errors; }
+    std::string_view Tokenizer::Input() const noexcept
+    {
+        return m_Borrowed ? m_View : std::string_view(m_Storage);
+    }
+    const std::vector<Token>& Tokenizer::GetTokens() const noexcept
+    {
+        return m_Tokens;
+    }
+    const std::vector<ParseError>& Tokenizer::GetErrors() const noexcept
+    {
+        return m_Errors;
+    }
 
     void Tokenizer::Reset()
     {
@@ -36,7 +45,8 @@ namespace HtmlParser
 
     void Tokenizer::SetTextMode(std::string_view Tag)
     {
-        if (Utils::IsRawTextElement(Tag) || Utils::EqualsIgnoreCase(Tag, "title") || Utils::EqualsIgnoreCase(Tag, "textarea"))
+        if (Utils::IsRawTextElement(Tag) || Utils::EqualsIgnoreCase(Tag, "title") ||
+            Utils::EqualsIgnoreCase(Tag, "textarea"))
         {
             m_TextTag = Utils::ToLower(std::string(Tag));
             m_DecodeText = m_TextTag == "title" || m_TextTag == "textarea";
@@ -86,7 +96,9 @@ namespace HtmlParser
                 {
                     const auto AfterName = End + 2 + m_TextTag.size();
                     if (End + 1 < Source.size() && Source[End + 1] == '/' && StartsWith(End + 2, m_TextTag) &&
-                        AfterName < Source.size() && (Utils::IsWhitespace(Source[AfterName]) || Source[AfterName] == '/' || Source[AfterName] == '>'))
+                        AfterName < Source.size() &&
+                        (Utils::IsWhitespace(Source[AfterName]) || Source[AfterName] == '/' ||
+                         Source[AfterName] == '>'))
                         break;
                     ++End;
                 }
@@ -130,7 +142,12 @@ namespace HtmlParser
             }
         }
         auto Text = Utils::NormalizeText(Source.substr(Start, m_Position - Start));
-        return {TokenType::Character, Decode && Text.find('&') != std::string::npos ? Utils::DecodeHtml(Text) : std::move(Text), {}, false, Start, m_Position};
+        return {TokenType::Character,
+                Decode && Text.find('&') != std::string::npos ? Utils::DecodeHtml(Text) : std::move(Text),
+                {},
+                false,
+                Start,
+                m_Position};
     }
 
     Token Tokenizer::ReadTag()
@@ -145,7 +162,8 @@ namespace HtmlParser
             ++m_Position;
         }
         const auto NameStart = m_Position;
-        while (m_Position < Source.size() && !Utils::IsWhitespace(Source[m_Position]) && Source[m_Position] != '/' && Source[m_Position] != '>')
+        while (m_Position < Source.size() && !Utils::IsWhitespace(Source[m_Position]) && Source[m_Position] != '/' &&
+               Source[m_Position] != '>')
             ++m_Position;
         Result.Data = Utils::ToLower(Utils::NormalizeText(Source.substr(NameStart, m_Position - NameStart)));
         bool Closed = false;
@@ -178,9 +196,10 @@ namespace HtmlParser
             // An initial '=' is part of a malformed name, and must still be consumed.
             ++m_Position;
             while (m_Position < Source.size() && !Utils::IsWhitespace(Source[m_Position]) &&
-                Source[m_Position] != '=' && Source[m_Position] != '/' && Source[m_Position] != '>')
+                   Source[m_Position] != '=' && Source[m_Position] != '/' && Source[m_Position] != '>')
                 ++m_Position;
-            auto Name = Utils::ToLower(Utils::NormalizeText(Source.substr(AttributeStart, m_Position - AttributeStart)));
+            auto Name =
+                Utils::ToLower(Utils::NormalizeText(Source.substr(AttributeStart, m_Position - AttributeStart)));
             while (m_Position < Source.size() && Utils::IsWhitespace(Source[m_Position]))
                 ++m_Position;
             std::string Value;
@@ -189,15 +208,22 @@ namespace HtmlParser
                 ++m_Position;
                 while (m_Position < Source.size() && Utils::IsWhitespace(Source[m_Position]))
                     ++m_Position;
-                const char Quote = m_Position < Source.size() && (Source[m_Position] == '\'' || Source[m_Position] == '"') ? Source[m_Position++] : '\0';
+                const char Quote =
+                    m_Position < Source.size() && (Source[m_Position] == '\'' || Source[m_Position] == '"')
+                        ? Source[m_Position++]
+                        : '\0';
                 const auto ValueStart = m_Position;
-                while (m_Position < Source.size() && (Quote ? Source[m_Position] != Quote : !Utils::IsWhitespace(Source[m_Position]) && Source[m_Position] != '>'))
+                while (m_Position < Source.size() &&
+                       (Quote ? Source[m_Position] != Quote
+                              : !Utils::IsWhitespace(Source[m_Position]) && Source[m_Position] != '>'))
                     ++m_Position;
-                Value = Utils::DecodeHtml(Utils::NormalizeText(Source.substr(ValueStart, m_Position - ValueStart)), true);
+                Value =
+                    Utils::DecodeHtml(Utils::NormalizeText(Source.substr(ValueStart, m_Position - ValueStart)), true);
                 if (Quote && m_Position < Source.size())
                     ++m_Position;
             }
-            if (Result.Type == TokenType::StartTag && !Result.Attributes.emplace(std::move(Name), std::move(Value)).second)
+            if (Result.Type == TokenType::StartTag &&
+                !Result.Attributes.emplace(std::move(Name), std::move(Value)).second)
                 Error(AttributeStart, "Duplicate attribute");
         }
         Result.EndOffset = m_Position;

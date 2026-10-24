@@ -24,8 +24,9 @@ namespace HtmlParser
         {
         public:
             TreeBuilder(std::string_view Source, Tokenizer& Tokens, const ParseOptions& Options, bool Fragment,
-                std::string_view ContextTag, bool CollectErrors)
-                : m_Source(Source), m_Tokens(Tokens), m_Options(Options), m_Fragment(Fragment), m_CollectErrors(CollectErrors)
+                        std::string_view ContextTag, bool CollectErrors)
+                : m_Source(Source), m_Tokens(Tokens), m_Options(Options), m_Fragment(Fragment),
+                  m_CollectErrors(CollectErrors)
             {
                 m_Open.push_back(m_Document.Root().get());
                 if (Fragment)
@@ -72,10 +73,26 @@ namespace HtmlParser
             }
 
         private:
-            enum class Mode { Initial, BeforeHtml, BeforeHead, InHead, AfterHead, InBody, AfterBody, AfterHtml };
+            enum class Mode
+            {
+                Initial,
+                BeforeHtml,
+                BeforeHead,
+                InHead,
+                AfterHead,
+                InBody,
+                AfterBody,
+                AfterHtml
+            };
 
-            Node* Current() const { return m_Open.back(); }
-            std::size_t Floor() const { return m_Fragment ? 2 : 1; }
+            Node* Current() const
+            {
+                return m_Open.back();
+            }
+            std::size_t Floor() const
+            {
+                return m_Fragment ? 2 : 1;
+            }
 
             void Report(const ParseError& Error)
             {
@@ -187,7 +204,8 @@ namespace HtmlParser
                 PopTo(Index);
             }
 
-            void CloseOptional(std::initializer_list<std::string_view> Tags, std::initializer_list<std::string_view> Boundaries)
+            void CloseOptional(std::initializer_list<std::string_view> Tags,
+                               std::initializer_list<std::string_view> Boundaries)
             {
                 if (Tags.size() == 1 && *Tags.begin() == "p" && m_ParagraphCount == 0)
                     return;
@@ -240,9 +258,13 @@ namespace HtmlParser
                     CloseOptional({"option"}, {"select"});
                     CloseOptional({"optgroup"}, {"select"});
                 }
-                if (IsOneOf(Tag, {"address", "article", "aside", "blockquote", "div", "dl", "fieldset", "footer", "form", "h1", "h2", "h3", "h4", "h5", "h6", "header", "hr", "main", "menu", "nav", "ol", "p", "pre", "section", "table", "ul"}))
+                if (IsOneOf(Tag, {"address", "article", "aside",   "blockquote", "div",  "dl",  "fieldset",
+                                  "footer",  "form",    "h1",      "h2",         "h3",   "h4",  "h5",
+                                  "h6",      "header",  "hr",      "main",       "menu", "nav", "ol",
+                                  "p",       "pre",     "section", "table",      "ul"}))
                     CloseOptional({"p"}, {"button", "table", "td", "th"});
-                if (IsOneOf(Tag, {"h1", "h2", "h3", "h4", "h5", "h6"}) && IsOneOf(Current()->Tag, {"h1", "h2", "h3", "h4", "h5", "h6"}))
+                if (IsOneOf(Tag, {"h1", "h2", "h3", "h4", "h5", "h6"}) &&
+                    IsOneOf(Current()->Tag, {"h1", "h2", "h3", "h4", "h5", "h6"}))
                     m_Open.pop_back();
                 if (Tag == "a" && FindOpen("a"))
                     Close("a");
@@ -319,7 +341,8 @@ namespace HtmlParser
                 const auto Type = CurrentToken.Type;
                 if (Type == TokenType::Comment)
                 {
-                    const bool Outside = m_Mode == Mode::Initial || m_Mode == Mode::BeforeHtml || m_Mode == Mode::AfterHtml;
+                    const bool Outside =
+                        m_Mode == Mode::Initial || m_Mode == Mode::BeforeHtml || m_Mode == Mode::AfterHtml;
                     m_SkipLeadingNewline = false;
                     InsertComment(CurrentToken, Outside ? m_Document.Root().get() : Current());
                     return;
@@ -384,7 +407,9 @@ namespace HtmlParser
                         }
                         if (Whitespace)
                             return;
-                        if (Type == TokenType::StartTag && IsOneOf(Tag, {"base", "basefont", "bgsound", "link", "meta", "title", "style", "script", "noframes", "template"}))
+                        if (Type == TokenType::StartTag &&
+                            IsOneOf(Tag, {"base", "basefont", "bgsound", "link", "meta", "title", "style", "script",
+                                          "noframes", "template"}))
                         {
                             InsertElement(CurrentToken);
                             return;
@@ -448,7 +473,7 @@ namespace HtmlParser
             std::size_t m_Offset = 0;
             std::vector<ParseError> m_Errors;
         };
-    }
+    } // namespace
 
     DOM Parser::Parse(std::string_view Input) const
     {

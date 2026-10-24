@@ -34,8 +34,14 @@ namespace HtmlParser
         ParseResult ParseWithDiagnostics(std::string_view Input) const;
         ParseResult ParseFragmentWithDiagnostics(std::string_view Input, std::string_view ContextTag = "body") const;
 
-        void SetStrict(bool Strict) noexcept { m_Options.Strict = Strict; }
-        const ParseOptions& Options() const noexcept { return m_Options; }
+        void SetStrict(bool Strict) noexcept
+        {
+            m_Options.Strict = Strict;
+        }
+        const ParseOptions& Options() const noexcept
+        {
+            return m_Options;
+        }
 
     private:
         ParseOptions m_Options;

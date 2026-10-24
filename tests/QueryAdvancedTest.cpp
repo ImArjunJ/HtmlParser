@@ -116,7 +116,8 @@ TEST(QueryAdvancedTest, SelectBySiblingCombinators)
 
 TEST(QueryAdvancedTest, SelectorListsAreUniqueAndInDocumentOrder)
 {
-    auto Document = HtmlParser::Parser().Parse("<div id=a><p id=one></p><div id=b><p id=two></p></div><p id=three></p></div>");
+    auto Document =
+        HtmlParser::Parser().Parse("<div id=a><p id=one></p><div id=b><p id=two></p></div><p id=three></p></div>");
     auto Matches = Document.Select("#three, div p, #one");
     ASSERT_EQ(Matches.size(), 3);
     EXPECT_EQ(Matches[0]->GetAttribute("id"), "one");
@@ -127,18 +128,22 @@ TEST(QueryAdvancedTest, SelectorListsAreUniqueAndInDocumentOrder)
 
 TEST(QueryAdvancedTest, HandlesQuotedAttributeSyntaxAndMissingAttributes)
 {
-    auto Document = HtmlParser::Parser().Parse("<a title='x > y, [z]' empty='' lang=en-US data-value='Hello world.txt'></a><a></a>");
+    auto Document = HtmlParser::Parser().Parse(
+        "<a title='x > y, [z]' empty='' lang=en-US data-value='Hello world.txt'></a><a></a>");
     EXPECT_EQ(Document.Select("[title='x > y, [z]']").size(), 1);
     EXPECT_EQ(Document.Select("[empty='']").size(), 1);
     EXPECT_TRUE(Document.Select("[missing='']").empty());
     EXPECT_EQ(Document.Select("[lang|=en]").size(), 1);
-    EXPECT_EQ(Document.Select("[data-value^=hello i][data-value$='.txt'][data-value*='world'][data-value~='Hello']").size(), 1);
+    EXPECT_EQ(
+        Document.Select("[data-value^=hello i][data-value$='.txt'][data-value*='world'][data-value~='Hello']").size(),
+        1);
     EXPECT_TRUE(Document.Select("[data-value^='']").empty());
 }
 
 TEST(QueryAdvancedTest, StructuralPseudoClassesIgnoreNonElementSiblings)
 {
-    auto Document = HtmlParser::Parser().Parse("<ul>text<!--x--><li id=a></li><b></b><li id=b></li><li id=c></li></ul>");
+    auto Document =
+        HtmlParser::Parser().Parse("<ul>text<!--x--><li id=a></li><b></b><li id=b></li><li id=c></li></ul>");
     EXPECT_EQ(Document.SelectFirst("li:first-child")->GetAttribute("id"), "a");
     EXPECT_EQ(Document.SelectFirst("li:last-child")->GetAttribute("id"), "c");
     EXPECT_EQ(Document.SelectFirst("li:nth-child(3)")->GetAttribute("id"), "b");
@@ -154,7 +159,8 @@ TEST(QueryAdvancedTest, StructuralPseudoClassesIgnoreNonElementSiblings)
 
 TEST(QueryAdvancedTest, SupportsNestedLogicalSelectorsAndScope)
 {
-    auto Document = HtmlParser::Parser().Parse("<div id=root><p class=a></p><section><p class=b></p></section><p class=c></p></div>");
+    auto Document = HtmlParser::Parser().Parse(
+        "<div id=root><p class=a></p><section><p class=b></p></section><p class=c></p></div>");
     auto Root = Document.GetElementById("root");
     EXPECT_EQ(Root->Select(":scope > p:not(.a, .b)").size(), 1);
     EXPECT_EQ(Root->Select("p:is(.a, .b):not(:where(.c))").size(), 2);
@@ -185,7 +191,8 @@ TEST(QueryAdvancedTest, SupportsEscapedIdentifiersAndReusableSelectors)
 TEST(QueryAdvancedTest, RejectsMalformedAndUnsupportedSelectors)
 {
     auto Document = HtmlParser::Parser().Parse("<p id=x></p>");
-    for (const auto* Input : {"", ".", "#", "p,", "p >", "> p", "p + > p", "[x", "[x='oops]", ":unknown", ":not()", ":nth-child(foo)", "p::before", "[x!=y]"})
+    for (const auto* Input : {"", ".", "#", "p,", "p >", "> p", "p + > p", "[x", "[x='oops]", ":unknown", ":not()",
+                              ":nth-child(foo)", "p::before", "[x!=y]"})
     {
         HtmlParser::Selector Pattern(Input);
         EXPECT_FALSE(Pattern.IsValid()) << Input;
@@ -198,7 +205,8 @@ TEST(QueryAdvancedTest, RejectsMalformedAndUnsupportedSelectors)
 
 TEST(QueryAdvancedTest, BacktracksAcrossAncestorAndSiblingCombinators)
 {
-    auto Document = HtmlParser::Parser().Parse("<div class=a><div><div class=a><p id=x></p></div></div></div><i></i><i></i><p id=y></p>");
+    auto Document = HtmlParser::Parser().Parse(
+        "<div class=a><div><div class=a><p id=x></p></div></div></div><i></i><i></i><p id=y></p>");
     EXPECT_EQ(Document.Select("div.a > div p").size(), 1);
     EXPECT_EQ(Document.Select("i ~ i + p").size(), 1);
     EXPECT_EQ(Document.Select("i + p")[0]->GetAttribute("id"), "y");

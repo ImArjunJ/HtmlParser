@@ -90,8 +90,10 @@ TEST(TokenizerTest, HandlesIncompleteMarkupAndLiteralLessThan)
 
 TEST(TokenizerTest, DecodesFullHtmlEntitiesAndNumericReplacements)
 {
-    HtmlParser::Tokenizer Tokenizer("&copy; &NotEqualTilde; &CounterClockwiseContourIntegral; &#x1F600; &#128; &#0; &#xD800; &#999999999999999999999; &#65 &unknown;");
-    EXPECT_EQ(Tokenizer.NextToken().Data, "\xC2\xA9 \xE2\x89\x82\xCC\xB8 \xE2\x88\xB3 \xF0\x9F\x98\x80 \xE2\x82\xAC \xEF\xBF\xBD \xEF\xBF\xBD \xEF\xBF\xBD A &unknown;");
+    HtmlParser::Tokenizer Tokenizer("&copy; &NotEqualTilde; &CounterClockwiseContourIntegral; &#x1F600; &#128; &#0; "
+                                    "&#xD800; &#999999999999999999999; &#65 &unknown;");
+    EXPECT_EQ(Tokenizer.NextToken().Data, "\xC2\xA9 \xE2\x89\x82\xCC\xB8 \xE2\x88\xB3 \xF0\x9F\x98\x80 \xE2\x82\xAC "
+                                          "\xEF\xBF\xBD \xEF\xBF\xBD \xEF\xBF\xBD A &unknown;");
 }
 
 TEST(TokenizerTest, DistinguishesAttributeEntityAmbiguity)
@@ -105,7 +107,8 @@ TEST(TokenizerTest, NormalizesNewlinesAndNullsAndReportsOriginalPositions)
 {
     const std::string Input = std::string("a\r\nb\rc\0d", 8) + "\n<!--unfinished";
     HtmlParser::Tokenizer Tokenizer(Input);
-    EXPECT_EQ(Tokenizer.NextToken().Data, "a\nb\nc\xEF\xBF\xBD" "d\n");
+    EXPECT_EQ(Tokenizer.NextToken().Data, "a\nb\nc\xEF\xBF\xBD"
+                                          "d\n");
     EXPECT_EQ(Tokenizer.NextToken().Type, HtmlParser::TokenType::Comment);
     ASSERT_EQ(Tokenizer.GetErrors().size(), 1);
     EXPECT_EQ(Tokenizer.GetErrors()[0].Line, 4);
@@ -115,12 +118,15 @@ TEST(TokenizerTest, NormalizesNewlinesAndNullsAndReportsOriginalPositions)
 TEST(ParserTest, BuildsCompleteEmptyDocuments)
 {
     EXPECT_EQ(HtmlParser::Parser().Parse("").ToHtml(), "<html><head></head><body></body></html>");
-    EXPECT_EQ(HtmlParser::Parser().Parse("<!DOCTYPE html>").ToHtml(), "<!DOCTYPE html><html><head></head><body></body></html>");
+    EXPECT_EQ(HtmlParser::Parser().Parse("<!DOCTYPE html>").ToHtml(),
+              "<!DOCTYPE html><html><head></head><body></body></html>");
 }
 
 TEST(ParserTest, PreservesHeadElementsAndBodyText)
 {
-    auto Document = HtmlParser::Parser().Parse("<html><head><meta charset=utf-8><title>A &amp; B</title><style>p > a { color: red; }</style></head><body>  hello <b>world</b> !</body></html>");
+    auto Document =
+        HtmlParser::Parser().Parse("<html><head><meta charset=utf-8><title>A &amp; B</title><style>p > a { color: red; "
+                                   "}</style></head><body>  hello <b>world</b> !</body></html>");
     auto Head = Document.GetElementsByTagName("head").front();
     ASSERT_EQ(Head->Children.size(), 3);
     EXPECT_EQ(Head->Children[1]->GetTextContent(), "A & B");
@@ -130,7 +136,8 @@ TEST(ParserTest, PreservesHeadElementsAndBodyText)
 
 TEST(ParserTest, RecoversCommonOmittedEndTags)
 {
-    auto Document = HtmlParser::Parser().Parse("<ul><li>one<li>two</ul><p>paragraph<div>block</div><select><option>a<option>b</select>");
+    auto Document = HtmlParser::Parser().Parse(
+        "<ul><li>one<li>two</ul><p>paragraph<div>block</div><select><option>a<option>b</select>");
     auto Items = Document.GetElementsByTagName("li");
     ASSERT_EQ(Items.size(), 2);
     EXPECT_EQ(Items[0]->GetTextContent(), "one");
@@ -158,7 +165,8 @@ TEST(ParserTest, ParsesFragmentsAndContextText)
     EXPECT_EQ(Fragment.Root()->Children[0]->Parent.lock(), Fragment.Root());
     EXPECT_EQ(Parser.ParseFragment("<tr><td>x", "table").ToHtml(), "<tbody><tr><td>x</td></tr></tbody>");
     EXPECT_EQ(Parser.ParseFragment("<b>&amp;", "textarea").Root()->GetTextContent(), "<b>&");
-    EXPECT_EQ(Parser.ParseFragment("if (a < b) x='&amp;';", "script").Root()->GetTextContent(), "if (a < b) x='&amp;';");
+    EXPECT_EQ(Parser.ParseFragment("if (a < b) x='&amp;';", "script").Root()->GetTextContent(),
+              "if (a < b) x='&amp;';");
 }
 
 TEST(ParserTest, ReportsDiagnosticsAndRecoversAcrossCalls)
@@ -220,13 +228,16 @@ TEST(ParserTest, ReusesOneParserAcrossConcurrentCalls)
     const HtmlParser::Parser Parser;
     std::vector<std::future<bool>> Tasks;
     for (int Index = 0; Index < 8; ++Index)
-        Tasks.push_back(std::async(std::launch::async, [&Parser, Index] {
-            const auto Text = std::to_string(Index);
-            for (int Iteration = 0; Iteration < 50; ++Iteration)
-                if (Parser.ParseFragment("<p>" + Text + "</p>").SelectFirst("p")->GetTextContent() != Text)
-                    return false;
-            return true;
-        }));
+        Tasks.push_back(std::async(
+            std::launch::async,
+            [&Parser, Index]
+            {
+                const auto Text = std::to_string(Index);
+                for (int Iteration = 0; Iteration < 50; ++Iteration)
+                    if (Parser.ParseFragment("<p>" + Text + "</p>").SelectFirst("p")->GetTextContent() != Text)
+                        return false;
+                return true;
+            }));
     for (auto& Task : Tasks)
         EXPECT_TRUE(Task.get());
 }

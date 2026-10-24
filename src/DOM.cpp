@@ -9,7 +9,10 @@ namespace HtmlParser
     DOM::DOM() : m_Document(std::make_shared<Node>(NodeType::Document)) {}
     DOM::DOM(const std::shared_ptr<Node>& Root) : m_Document(Root) {}
 
-    std::shared_ptr<Node> DOM::Root() const { return m_Document; }
+    std::shared_ptr<Node> DOM::Root() const
+    {
+        return m_Document;
+    }
 
     void DOM::Traverse(const std::function<void(const std::shared_ptr<Node>&)>& Visitor) const
     {
@@ -32,11 +35,14 @@ namespace HtmlParser
     {
         const auto Normalized = Utils::ToLower(TagName);
         std::vector<std::shared_ptr<Node>> Elements;
-        Detail::Walk(m_Document.get(), [&](const auto& Current) {
-            if (Current->Type == NodeType::Element && (Normalized == "*" || Utils::EqualsIgnoreCase(Current->Tag, Normalized)))
-                Elements.push_back(Current->shared_from_this());
-            return true;
-        });
+        Detail::Walk(m_Document.get(),
+                     [&](const auto& Current)
+                     {
+                         if (Current->Type == NodeType::Element &&
+                             (Normalized == "*" || Utils::EqualsIgnoreCase(Current->Tag, Normalized)))
+                             Elements.push_back(Current->shared_from_this());
+                         return true;
+                     });
         return Elements;
     }
 
@@ -46,26 +52,34 @@ namespace HtmlParser
         std::vector<std::shared_ptr<Node>> Elements;
         if (Classes.empty())
             return Elements;
-        Detail::Walk(m_Document.get(), [&](const auto& Current) {
-            if (Current->Type == NodeType::Element && std::all_of(Classes.begin(), Classes.end(), [&](auto Class) {
-                const auto It = Current->Attributes.find("class");
-                return It != Current->Attributes.end() && Utils::ContainsWord(It->second, Class);
-            }))
-                Elements.push_back(Current->shared_from_this());
-            return true;
-        });
+        Detail::Walk(m_Document.get(),
+                     [&](const auto& Current)
+                     {
+                         if (Current->Type == NodeType::Element &&
+                             std::all_of(Classes.begin(), Classes.end(),
+                                         [&](auto Class)
+                                         {
+                                             const auto It = Current->Attributes.find("class");
+                                             return It != Current->Attributes.end() &&
+                                                    Utils::ContainsWord(It->second, Class);
+                                         }))
+                             Elements.push_back(Current->shared_from_this());
+                         return true;
+                     });
         return Elements;
     }
 
     std::shared_ptr<Node> DOM::GetElementById(const std::string& Id) const
     {
         std::shared_ptr<Node> Result;
-        Detail::Walk(m_Document.get(), [&](const auto& Current) {
-            const auto It = Current->Attributes.find("id");
-            if (Current->Type == NodeType::Element && It != Current->Attributes.end() && It->second == Id)
-                Result = Current->shared_from_this();
-            return !Result;
-        });
+        Detail::Walk(m_Document.get(),
+                     [&](const auto& Current)
+                     {
+                         const auto It = Current->Attributes.find("id");
+                         if (Current->Type == NodeType::Element && It != Current->Attributes.end() && It->second == Id)
+                             Result = Current->shared_from_this();
+                         return !Result;
+                     });
         return Result;
     }
 
@@ -88,7 +102,12 @@ namespace HtmlParser
     {
         std::string Serialize(const Node& Root)
         {
-            struct Frame { const Node* Current; bool Closing; bool RawText; };
+            struct Frame
+            {
+                const Node* Current;
+                bool Closing;
+                bool RawText;
+            };
             std::vector<Frame> Pending{{&Root, false, false}};
             std::string Html;
             while (!Pending.empty())
@@ -130,7 +149,11 @@ namespace HtmlParser
                     Attributes.reserve(Current->Attributes.size());
                     for (const auto& Attribute : Current->Attributes)
                         Attributes.push_back(&Attribute);
-                    std::sort(Attributes.begin(), Attributes.end(), [](auto Left, auto Right) { return Left->first < Right->first; });
+                    std::sort(Attributes.begin(), Attributes.end(),
+                              [](auto Left, auto Right)
+                              {
+                                  return Left->first < Right->first;
+                              });
                     for (const auto* Attribute : Attributes)
                     {
                         Html += ' ';
@@ -142,9 +165,12 @@ namespace HtmlParser
                     Html += '>';
                     if (Utils::IsVoidElement(Current->Tag))
                         continue;
-                    if ((Utils::EqualsIgnoreCase(Current->Tag, "pre") || Utils::EqualsIgnoreCase(Current->Tag, "textarea") ||
-                        Utils::EqualsIgnoreCase(Current->Tag, "listing")) && !Current->Children.empty() && Current->Children.front() &&
-                        Current->Children.front()->Type == NodeType::Text && Current->Children.front()->Text.starts_with('\n'))
+                    if ((Utils::EqualsIgnoreCase(Current->Tag, "pre") ||
+                         Utils::EqualsIgnoreCase(Current->Tag, "textarea") ||
+                         Utils::EqualsIgnoreCase(Current->Tag, "listing")) &&
+                        !Current->Children.empty() && Current->Children.front() &&
+                        Current->Children.front()->Type == NodeType::Text &&
+                        Current->Children.front()->Text.starts_with('\n'))
                         Html += '\n';
                     Pending.push_back({Current, true, false});
                     break;

@@ -21,7 +21,10 @@ namespace HtmlParser::Utils
     inline bool EqualsIgnoreCase(std::string_view Left, std::string_view Right)
     {
         return Left.size() == Right.size() && std::equal(Left.begin(), Left.end(), Right.begin(),
-            [](char A, char B) { return Lower(A) == Lower(B); });
+                                                         [](char A, char B)
+                                                         {
+                                                             return Lower(A) == Lower(B);
+                                                         });
     }
 
     inline std::vector<std::string_view> Words(std::string_view Input)
@@ -49,7 +52,8 @@ namespace HtmlParser::Utils
         while ((Position = Input.find(Word, Position)) != std::string_view::npos)
         {
             const auto End = Position + Word.size();
-            if ((Position == 0 || IsWhitespace(Input[Position - 1])) && (End == Input.size() || IsWhitespace(Input[End])))
+            if ((Position == 0 || IsWhitespace(Input[Position - 1])) &&
+                (End == Input.size() || IsWhitespace(Input[End])))
                 return true;
             Position = End;
         }
@@ -58,14 +62,23 @@ namespace HtmlParser::Utils
 
     inline bool IsVoidElement(std::string_view Tag)
     {
-        constexpr std::string_view Tags[] = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"};
-        return std::any_of(std::begin(Tags), std::end(Tags), [&](auto Value) { return EqualsIgnoreCase(Tag, Value); });
+        constexpr std::string_view Tags[] = {"area",  "base", "br",   "col",   "embed",  "hr",    "img",
+                                             "input", "link", "meta", "param", "source", "track", "wbr"};
+        return std::any_of(std::begin(Tags), std::end(Tags),
+                           [&](auto Value)
+                           {
+                               return EqualsIgnoreCase(Tag, Value);
+                           });
     }
 
     inline bool IsRawTextElement(std::string_view Tag)
     {
         constexpr std::string_view Tags[] = {"script", "style", "xmp", "iframe", "noembed", "noframes", "plaintext"};
-        return std::any_of(std::begin(Tags), std::end(Tags), [&](auto Value) { return EqualsIgnoreCase(Tag, Value); });
+        return std::any_of(std::begin(Tags), std::end(Tags),
+                           [&](auto Value)
+                           {
+                               return EqualsIgnoreCase(Tag, Value);
+                           });
     }
 
     inline std::string ToLower(std::string_view Input)

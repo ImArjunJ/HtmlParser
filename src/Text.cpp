@@ -44,17 +44,20 @@ namespace HtmlParser::Utils
     {
         if (Input.find('&') == std::string_view::npos)
             return std::string(Input);
-        struct Entity { std::string_view Name; std::string_view Value; };
+        struct Entity
+        {
+            std::string_view Name;
+            std::string_view Value;
+        };
         static constexpr Entity Entities[] = {
 #include "Entities.inc"
         };
-        static constexpr unsigned int Windows1252[] = {
-            0x20AC, 0x81, 0x201A, 0x192, 0x201E, 0x2026, 0x2020, 0x2021,
-            0x2C6, 0x2030, 0x160, 0x2039, 0x152, 0x8D, 0x17D, 0x8F,
-            0x90, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
-            0x2DC, 0x2122, 0x161, 0x203A, 0x153, 0x9D, 0x17E, 0x178
-        };
-        auto IsAlphaNumeric = [](char Value) {
+        static constexpr unsigned int Windows1252[] = {0x20AC, 0x81,   0x201A, 0x192,  0x201E, 0x2026, 0x2020, 0x2021,
+                                                       0x2C6,  0x2030, 0x160,  0x2039, 0x152,  0x8D,   0x17D,  0x8F,
+                                                       0x90,   0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014,
+                                                       0x2DC,  0x2122, 0x161,  0x203A, 0x153,  0x9D,   0x17E,  0x178};
+        auto IsAlphaNumeric = [](char Value)
+        {
             return (Value >= 'a' && Value <= 'z') || (Value >= 'A' && Value <= 'Z') || (Value >= '0' && Value <= '9');
         };
         std::string Result;
@@ -78,11 +81,13 @@ namespace HtmlParser::Utils
                 while (End < Input.size())
                 {
                     const auto Value = Input[End];
-                    const int Digit = Value >= '0' && Value <= '9' ? Value - '0' :
-                        Hex && Lower(Value) >= 'a' && Lower(Value) <= 'f' ? Lower(Value) - 'a' + 10 : -1;
+                    const int Digit = Value >= '0' && Value <= '9'                        ? Value - '0'
+                                      : Hex && Lower(Value) >= 'a' && Lower(Value) <= 'f' ? Lower(Value) - 'a' + 10
+                                                                                          : -1;
                     if (Digit < 0)
                         break;
-                    Codepoint = Codepoint > 0x10FFFF ? 0x110000 : Codepoint * (Hex ? 16 : 10) + static_cast<unsigned int>(Digit);
+                    Codepoint = Codepoint > 0x10FFFF ? 0x110000
+                                                     : Codepoint * (Hex ? 16 : 10) + static_cast<unsigned int>(Digit);
                     ++End;
                 }
                 if (End != Digits)
@@ -110,10 +115,14 @@ namespace HtmlParser::Utils
                 {
                     const auto Name = Input.substr(Start, End - Start);
                     const auto Found = std::lower_bound(std::begin(Entities), std::end(Entities), Name,
-                        [](const auto& Entry, auto Key) { return Entry.Name < Key; });
+                                                        [](const auto& Entry, auto Key)
+                                                        {
+                                                            return Entry.Name < Key;
+                                                        });
                     if (Found == std::end(Entities) || Found->Name != Name)
                         continue;
-                    if (Attribute && Name.back() != ';' && End < Input.size() && (IsAlphaNumeric(Input[End]) || Input[End] == '='))
+                    if (Attribute && Name.back() != ';' && End < Input.size() &&
+                        (IsAlphaNumeric(Input[End]) || Input[End] == '='))
                         break;
                     Result += Found->Value;
                     Position = End;

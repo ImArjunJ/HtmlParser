@@ -122,11 +122,13 @@ namespace HtmlParser
         if (Type == NodeType::Text || Type == NodeType::Comment || Type == NodeType::Doctype)
             return Text;
         std::string Result;
-        Detail::Walk(this, [&](const Node* Current) {
-            if (Current->Type == NodeType::Text)
-                Result += Current->Text;
-            return true;
-        });
+        Detail::Walk(this,
+                     [&](const Node* Current)
+                     {
+                         if (Current->Type == NodeType::Text)
+                             Result += Current->Text;
+                         return true;
+                     });
         return Result;
     }
 

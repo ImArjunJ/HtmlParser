@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include <HtmlParser/Parser.hpp>
 #include <HtmlParser/DOM.hpp>
+#include <HtmlParser/Parser.hpp>
+#include <gtest/gtest.h>
 
 TEST(ParserWhitespaceTest, WhitespaceBeforeHtml)
 {
@@ -33,4 +33,3 @@ TEST(ParserWhitespaceTest, WhitespaceAfterHead)
     auto Body = DOM.GetElementsByTagName("body");
     ASSERT_EQ(Body.size(), 1);
 }
-

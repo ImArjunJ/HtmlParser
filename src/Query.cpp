@@ -16,9 +16,37 @@ namespace HtmlParser
     namespace
     {
         struct Group;
-        enum class Kind { Id, Class, Attribute, Scope, Root, Empty, First, Last, Only, FirstType, LastType, OnlyType,
-            Nth, NthLast, NthType, NthLastType, Not, Is };
-        enum class Operator { Exists, Equal, Word, Dash, Prefix, Suffix, Substring };
+        enum class Kind
+        {
+            Id,
+            Class,
+            Attribute,
+            Scope,
+            Root,
+            Empty,
+            First,
+            Last,
+            Only,
+            FirstType,
+            LastType,
+            OnlyType,
+            Nth,
+            NthLast,
+            NthType,
+            NthLastType,
+            Not,
+            Is
+        };
+        enum class Operator
+        {
+            Exists,
+            Equal,
+            Word,
+            Dash,
+            Prefix,
+            Suffix,
+            Substring
+        };
         struct Test
         {
             Kind Type = Kind::Attribute;
@@ -30,9 +58,20 @@ namespace HtmlParser
             int B = 0;
             std::vector<Group> Nested;
         };
-        struct Compound { std::string Tag; std::vector<Test> Tests; };
-        struct Step { Compound Filter; char Relation = ' '; };
-        struct Group { std::vector<Step> Steps; };
+        struct Compound
+        {
+            std::string Tag;
+            std::vector<Test> Tests;
+        };
+        struct Step
+        {
+            Compound Filter;
+            char Relation = ' ';
+        };
+        struct Group
+        {
+            std::vector<Step> Steps;
+        };
 
         class SelectorParser
         {
@@ -46,10 +85,16 @@ namespace HtmlParser
                     Fail("Unexpected selector input");
                 return m_Error.empty() ? Result : std::vector<Group>{};
             }
-            std::string Error() const { return m_Error; }
+            std::string Error() const
+            {
+                return m_Error;
+            }
 
         private:
-            char Peek() const { return m_Position < m_Source.size() ? m_Source[m_Position] : '\0'; }
+            char Peek() const
+            {
+                return m_Position < m_Source.size() ? m_Source[m_Position] : '\0';
+            }
             void Fail(std::string Message)
             {
                 if (m_Error.empty())
@@ -65,7 +110,8 @@ namespace HtmlParser
             static bool NameCharacter(char Value)
             {
                 return (Value >= 'a' && Value <= 'z') || (Value >= 'A' && Value <= 'Z') ||
-                    (Value >= '0' && Value <= '9') || Value == '-' || Value == '_' || static_cast<unsigned char>(Value) >= 0x80;
+                       (Value >= '0' && Value <= '9') || Value == '-' || Value == '_' ||
+                       static_cast<unsigned char>(Value) >= 0x80;
             }
             void Escape(std::string& Result)
             {
@@ -80,7 +126,9 @@ namespace HtmlParser
                 for (; Count < 6; ++Count)
                 {
                     const auto Value = Utils::Lower(Peek());
-                    const int Digit = Value >= '0' && Value <= '9' ? Value - '0' : Value >= 'a' && Value <= 'f' ? Value - 'a' + 10 : -1;
+                    const int Digit = Value >= '0' && Value <= '9'   ? Value - '0'
+                                      : Value >= 'a' && Value <= 'f' ? Value - 'a' + 10
+                                                                     : -1;
                     if (Digit < 0)
                         break;
                     Codepoint = Codepoint * 16 + static_cast<unsigned int>(Digit);
@@ -154,13 +202,27 @@ namespace HtmlParser
                 {
                     switch (Peek())
                     {
-                    case '=': Result.Operation = Operator::Equal; break;
-                    case '~': Result.Operation = Operator::Word; break;
-                    case '|': Result.Operation = Operator::Dash; break;
-                    case '^': Result.Operation = Operator::Prefix; break;
-                    case '$': Result.Operation = Operator::Suffix; break;
-                    case '*': Result.Operation = Operator::Substring; break;
-                    default: Fail("Invalid attribute operator"); return Result;
+                    case '=':
+                        Result.Operation = Operator::Equal;
+                        break;
+                    case '~':
+                        Result.Operation = Operator::Word;
+                        break;
+                    case '|':
+                        Result.Operation = Operator::Dash;
+                        break;
+                    case '^':
+                        Result.Operation = Operator::Prefix;
+                        break;
+                    case '$':
+                        Result.Operation = Operator::Suffix;
+                        break;
+                    case '*':
+                        Result.Operation = Operator::Substring;
+                        break;
+                    default:
+                        Fail("Invalid attribute operator");
+                        return Result;
                     }
                     if (Peek() != '=')
                         ++m_Position;
@@ -228,13 +290,22 @@ namespace HtmlParser
                 ++m_Position;
                 Test Result;
                 const auto Name = Utils::ToLower(Identifier());
-                static const std::unordered_map<std::string, Kind> Names = {
-                    {"scope", Kind::Scope}, {"root", Kind::Root}, {"empty", Kind::Empty},
-                    {"first-child", Kind::First}, {"last-child", Kind::Last}, {"only-child", Kind::Only},
-                    {"first-of-type", Kind::FirstType}, {"last-of-type", Kind::LastType}, {"only-of-type", Kind::OnlyType},
-                    {"nth-child", Kind::Nth}, {"nth-last-child", Kind::NthLast}, {"nth-of-type", Kind::NthType},
-                    {"nth-last-of-type", Kind::NthLastType}, {"not", Kind::Not}, {"is", Kind::Is}, {"where", Kind::Is}
-                };
+                static const std::unordered_map<std::string, Kind> Names = {{"scope", Kind::Scope},
+                                                                            {"root", Kind::Root},
+                                                                            {"empty", Kind::Empty},
+                                                                            {"first-child", Kind::First},
+                                                                            {"last-child", Kind::Last},
+                                                                            {"only-child", Kind::Only},
+                                                                            {"first-of-type", Kind::FirstType},
+                                                                            {"last-of-type", Kind::LastType},
+                                                                            {"only-of-type", Kind::OnlyType},
+                                                                            {"nth-child", Kind::Nth},
+                                                                            {"nth-last-child", Kind::NthLast},
+                                                                            {"nth-of-type", Kind::NthType},
+                                                                            {"nth-last-of-type", Kind::NthLastType},
+                                                                            {"not", Kind::Not},
+                                                                            {"is", Kind::Is},
+                                                                            {"where", Kind::Is}};
                 const auto Found = Names.find(Name);
                 if (Found == Names.end())
                 {
@@ -357,7 +428,8 @@ namespace HtmlParser
                 if (Inserted)
                 {
                     auto& Data = Entry->second;
-                    auto Add = [&](const Node* Child) {
+                    auto Add = [&](const Node* Child)
+                    {
                         if (Child && Child->Type == NodeType::Element)
                         {
                             Data.Positions.emplace(Child, Data.Elements.size());
@@ -391,13 +463,21 @@ namespace HtmlParser
             const std::string_view Right = Rule.Insensitive ? RightStorage : Rule.Value;
             switch (Rule.Operation)
             {
-            case Operator::Equal: return Left == Right;
-            case Operator::Word: return Utils::ContainsWord(Left, Right);
-            case Operator::Dash: return Left == Right || (Left.size() > Right.size() && Left.starts_with(Right) && Left[Right.size()] == '-');
-            case Operator::Prefix: return !Right.empty() && Left.starts_with(Right);
-            case Operator::Suffix: return !Right.empty() && Left.ends_with(Right);
-            case Operator::Substring: return !Right.empty() && Left.find(Right) != std::string_view::npos;
-            case Operator::Exists: return true;
+            case Operator::Equal:
+                return Left == Right;
+            case Operator::Word:
+                return Utils::ContainsWord(Left, Right);
+            case Operator::Dash:
+                return Left == Right ||
+                       (Left.size() > Right.size() && Left.starts_with(Right) && Left[Right.size()] == '-');
+            case Operator::Prefix:
+                return !Right.empty() && Left.starts_with(Right);
+            case Operator::Suffix:
+                return !Right.empty() && Left.ends_with(Right);
+            case Operator::Substring:
+                return !Right.empty() && Left.find(Right) != std::string_view::npos;
+            case Operator::Exists:
+                return true;
             }
             return false;
         }
@@ -416,7 +496,8 @@ namespace HtmlParser
                 const auto Found = Element.Attributes.find("class");
                 return Found != Element.Attributes.end() && Utils::ContainsWord(Found->second, Rule.Value);
             }
-            case Kind::Attribute: return MatchAttribute(Element, Rule);
+            case Kind::Attribute:
+                return MatchAttribute(Element, Rule);
             case Kind::Scope:
                 if (Context.Scope && Context.Scope->Type == NodeType::Document)
                     return Element.Parent.lock().get() == Context.Scope;
@@ -427,28 +508,42 @@ namespace HtmlParser
                 return !Parent || Parent->Type == NodeType::Document;
             }
             case Kind::Empty:
-                return std::none_of(Element.Children.begin(), Element.Children.end(), [](const auto& Child) {
-                    return Child && (Child->Type == NodeType::Element || (Child->Type == NodeType::Text && !Child->Text.empty()));
-                });
-            case Kind::Not: return !MatchList(Element, Rule.Nested, Context);
-            case Kind::Is: return MatchList(Element, Rule.Nested, Context);
-            default: break;
+                return std::none_of(Element.Children.begin(), Element.Children.end(),
+                                    [](const auto& Child)
+                                    {
+                                        return Child && (Child->Type == NodeType::Element ||
+                                                         (Child->Type == NodeType::Text && !Child->Text.empty()));
+                                    });
+            case Kind::Not:
+                return !MatchList(Element, Rule.Nested, Context);
+            case Kind::Is:
+                return MatchList(Element, Rule.Nested, Context);
+            default:
+                break;
             }
             const auto& Family = Context.Family(Element);
             const auto Found = Family.Positions.find(&Element);
             if (Found == Family.Positions.end())
                 return false;
             const auto Position = Found->second;
-            const bool OfType = Rule.Type == Kind::FirstType || Rule.Type == Kind::LastType || Rule.Type == Kind::OnlyType ||
-                Rule.Type == Kind::NthType || Rule.Type == Kind::NthLastType;
+            const bool OfType = Rule.Type == Kind::FirstType || Rule.Type == Kind::LastType ||
+                                Rule.Type == Kind::OnlyType || Rule.Type == Kind::NthType ||
+                                Rule.Type == Kind::NthLastType;
             const auto Index = OfType ? Family.TypePositions[Position] : Position + 1;
             const auto Count = OfType ? Family.TypeCounts.at(Utils::ToLower(Element.Tag)) : Family.Elements.size();
             switch (Rule.Type)
             {
-            case Kind::First: case Kind::FirstType: return Index == 1;
-            case Kind::Last: case Kind::LastType: return Index == Count;
-            case Kind::Only: case Kind::OnlyType: return Count == 1;
-            default: break;
+            case Kind::First:
+            case Kind::FirstType:
+                return Index == 1;
+            case Kind::Last:
+            case Kind::LastType:
+                return Index == Count;
+            case Kind::Only:
+            case Kind::OnlyType:
+                return Count == 1;
+            default:
+                break;
             }
             const bool Reverse = Rule.Type == Kind::NthLast || Rule.Type == Kind::NthLastType;
             const auto Value = static_cast<std::int64_t>(Reverse ? Count - Index + 1 : Index) - Rule.B;
@@ -457,9 +552,14 @@ namespace HtmlParser
 
         bool MatchFilter(const Node& Element, const Compound& Filter, MatchContext& Context)
         {
-            if (Element.Type != NodeType::Element || (!Filter.Tag.empty() && !Utils::EqualsIgnoreCase(Element.Tag, Filter.Tag)))
+            if (Element.Type != NodeType::Element ||
+                (!Filter.Tag.empty() && !Utils::EqualsIgnoreCase(Element.Tag, Filter.Tag)))
                 return false;
-            return std::all_of(Filter.Tests.begin(), Filter.Tests.end(), [&](const auto& Rule) { return MatchTest(Element, Rule, Context); });
+            return std::all_of(Filter.Tests.begin(), Filter.Tests.end(),
+                               [&](const auto& Rule)
+                               {
+                                   return MatchTest(Element, Rule, Context);
+                               });
         }
 
         bool MatchGroup(const Node& Element, const Group& Pattern, MatchContext& Context)
@@ -468,7 +568,12 @@ namespace HtmlParser
                 return false;
             if (Pattern.Steps.size() == 1)
                 return true;
-            enum class Mode { Filter, Ancestors, Siblings };
+            enum class Mode
+            {
+                Filter,
+                Ancestors,
+                Siblings
+            };
             struct State
             {
                 const Node* Element;
@@ -480,12 +585,14 @@ namespace HtmlParser
             {
                 std::size_t operator()(const State& Value) const
                 {
-                    return std::hash<const Node*>{}(Value.Element) ^ (Value.Index * 3 + static_cast<std::size_t>(Value.Action));
+                    return std::hash<const Node*>{}(Value.Element) ^
+                           (Value.Index * 3 + static_cast<std::size_t>(Value.Action));
                 }
             };
             std::vector<State> Pending{{&Element, Pattern.Steps.size() - 1, Mode::Filter}};
             std::unordered_set<State, Hash> Seen;
-            auto Previous = [&](const Node& Current) -> const Node* {
+            auto Previous = [&](const Node& Current) -> const Node*
+            {
                 const auto& Family = Context.Family(Current);
                 const auto Found = Family.Positions.find(&Current);
                 return Found != Family.Positions.end() && Found->second ? Family.Elements[Found->second - 1] : nullptr;
@@ -526,11 +633,19 @@ namespace HtmlParser
 
         bool MatchList(const Node& Element, const std::vector<Group>& Groups, MatchContext& Context)
         {
-            return std::any_of(Groups.begin(), Groups.end(), [&](const auto& Pattern) { return MatchGroup(Element, Pattern, Context); });
+            return std::any_of(Groups.begin(), Groups.end(),
+                               [&](const auto& Pattern)
+                               {
+                                   return MatchGroup(Element, Pattern, Context);
+                               });
         }
-    }
+    } // namespace
 
-    struct Selector::Impl { std::vector<Group> Groups; std::string Error; };
+    struct Selector::Impl
+    {
+        std::vector<Group> Groups;
+        std::string Error;
+    };
     Selector::Selector(std::string_view Pattern) : m_Impl(std::make_unique<Impl>())
     {
         SelectorParser Parser(Pattern);
@@ -538,7 +653,9 @@ namespace HtmlParser
         m_Impl->Error = Parser.Error();
     }
     Selector::~Selector() = default;
-    Selector::Selector(const Selector& Other) : m_Impl(Other.m_Impl ? std::make_unique<Impl>(*Other.m_Impl) : nullptr) {}
+    Selector::Selector(const Selector& Other) : m_Impl(Other.m_Impl ? std::make_unique<Impl>(*Other.m_Impl) : nullptr)
+    {
+    }
     Selector& Selector::operator=(const Selector& Other)
     {
         if (this != &Other)
@@ -547,8 +664,14 @@ namespace HtmlParser
     }
     Selector::Selector(Selector&&) noexcept = default;
     Selector& Selector::operator=(Selector&&) noexcept = default;
-    bool Selector::IsValid() const noexcept { return m_Impl && m_Impl->Error.empty() && !m_Impl->Groups.empty(); }
-    std::string_view Selector::Error() const noexcept { return m_Impl ? std::string_view(m_Impl->Error) : std::string_view{}; }
+    bool Selector::IsValid() const noexcept
+    {
+        return m_Impl && m_Impl->Error.empty() && !m_Impl->Groups.empty();
+    }
+    std::string_view Selector::Error() const noexcept
+    {
+        return m_Impl ? std::string_view(m_Impl->Error) : std::string_view{};
+    }
     bool Selector::Matches(const Node& Element, const Node* Scope) const
     {
         MatchContext Context{Scope ? Scope : &Element, nullptr, {}};
@@ -556,19 +679,27 @@ namespace HtmlParser
     }
 
     Query::Query(const std::shared_ptr<Node>& QueryRoot) : m_Root(QueryRoot) {}
-    std::vector<std::shared_ptr<Node>> Query::Select(std::string_view Pattern) const { return Select(Selector(Pattern)); }
-    std::shared_ptr<Node> Query::SelectFirst(std::string_view Pattern) const { return SelectFirst(Selector(Pattern)); }
+    std::vector<std::shared_ptr<Node>> Query::Select(std::string_view Pattern) const
+    {
+        return Select(Selector(Pattern));
+    }
+    std::shared_ptr<Node> Query::SelectFirst(std::string_view Pattern) const
+    {
+        return SelectFirst(Selector(Pattern));
+    }
     std::vector<std::shared_ptr<Node>> Query::Select(const Selector& Pattern) const
     {
         std::vector<std::shared_ptr<Node>> Results;
         if (!Pattern.IsValid())
             return Results;
         MatchContext Context{m_Root.get(), m_Root.get(), {}};
-        Detail::Walk(m_Root.get(), [&](auto* Current) {
-            if (MatchList(*Current, Pattern.m_Impl->Groups, Context))
-                Results.push_back(Current->shared_from_this());
-            return true;
-        });
+        Detail::Walk(m_Root.get(),
+                     [&](auto* Current)
+                     {
+                         if (MatchList(*Current, Pattern.m_Impl->Groups, Context))
+                             Results.push_back(Current->shared_from_this());
+                         return true;
+                     });
         return Results;
     }
     std::shared_ptr<Node> Query::SelectFirst(const Selector& Pattern) const
@@ -577,11 +708,13 @@ namespace HtmlParser
         if (!Pattern.IsValid())
             return Result;
         MatchContext Context{m_Root.get(), m_Root.get(), {}};
-        Detail::Walk(m_Root.get(), [&](auto* Current) {
-            if (MatchList(*Current, Pattern.m_Impl->Groups, Context))
-                Result = Current->shared_from_this();
-            return !Result;
-        });
+        Detail::Walk(m_Root.get(),
+                     [&](auto* Current)
+                     {
+                         if (MatchList(*Current, Pattern.m_Impl->Groups, Context))
+                             Result = Current->shared_from_this();
+                         return !Result;
+                     });
         return Result;
     }
 } // namespace HtmlParser
