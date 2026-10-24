@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <future>
+
 #include <HtmlParser/DOM.hpp>
 #include <HtmlParser/Parser.hpp>
 
@@ -203,4 +205,28 @@ TEST(ParserTest, StripsOnlyTheImmediateLeadingPreformattedNewline)
     EXPECT_EQ(Pre[0]->GetTextContent(), "\ntext");
     EXPECT_EQ(Pre[1]->GetTextContent(), "\nkeep");
     EXPECT_EQ(Document.GetElementsByTagName("textarea")[0]->GetTextContent(), "value");
+}
+
+TEST(ParserTest, RecoversMisplacedDocumentClosersInHeadContent)
+{
+    auto Document = HtmlParser::Parser().Parse("<head><template></body></html></head><p>after");
+    ASSERT_EQ(Document.GetElementsByTagName("body").size(), 1);
+    EXPECT_EQ(Document.GetElementsByTagName("p").front()->GetTextContent(), "after");
+    EXPECT_EQ(Document.GetElementsByTagName("p").front()->Parent.lock()->Tag, "body");
+}
+
+TEST(ParserTest, ReusesOneParserAcrossConcurrentCalls)
+{
+    const HtmlParser::Parser Parser;
+    std::vector<std::future<bool>> Tasks;
+    for (int Index = 0; Index < 8; ++Index)
+        Tasks.push_back(std::async(std::launch::async, [&Parser, Index] {
+            const auto Text = std::to_string(Index);
+            for (int Iteration = 0; Iteration < 50; ++Iteration)
+                if (Parser.ParseFragment("<p>" + Text + "</p>").SelectFirst("p")->GetTextContent() != Text)
+                    return false;
+            return true;
+        }));
+    for (auto& Task : Tasks)
+        EXPECT_TRUE(Task.get());
 }

@@ -295,11 +295,18 @@ namespace HtmlParser
                     const auto& Tag = CurrentToken.Data;
                     if (!m_Fragment && (Tag == "body" || Tag == "html"))
                     {
+                        if (!m_Body)
+                        {
+                            Error("Unexpected end tag in head: " + Tag);
+                            return;
+                        }
                         if (m_Open.size() > 3)
                             Error("Unclosed element before end of body");
                         PopTo(2);
                         m_Mode = Tag == "body" ? Mode::AfterBody : Mode::AfterHtml;
                     }
+                    else if (m_Mode == Mode::InHead && Tag == "head")
+                        Error("Unexpected head end tag inside head content");
                     else
                         Close(Tag);
                 }
@@ -367,7 +374,7 @@ namespace HtmlParser
                     case Mode::InHead:
                         if (Current() != m_Head)
                         {
-                            if (Type != TokenType::EOFToken)
+                            if (Type != TokenType::EOFToken && !(Type == TokenType::EndTag && Tag == "head"))
                             {
                                 ProcessBody(CurrentToken);
                                 return;
