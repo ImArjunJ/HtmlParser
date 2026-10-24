@@ -3,13 +3,75 @@
 #include <cctype>
 #include <cstdlib>
 #include <string>
+#include <string_view>
+#include <vector>
 
 namespace HtmlParser::Utils
 {
+    constexpr bool IsWhitespace(char Value)
+    {
+        return Value == ' ' || Value == '\t' || Value == '\n' || Value == '\r' || Value == '\f';
+    }
+
+    constexpr char Lower(char Value)
+    {
+        return Value >= 'A' && Value <= 'Z' ? static_cast<char>(Value + ('a' - 'A')) : Value;
+    }
+
+    inline bool EqualsIgnoreCase(std::string_view Left, std::string_view Right)
+    {
+        return Left.size() == Right.size() && std::equal(Left.begin(), Left.end(), Right.begin(),
+            [](char A, char B) { return Lower(A) == Lower(B); });
+    }
+
+    inline std::vector<std::string_view> Words(std::string_view Input)
+    {
+        std::vector<std::string_view> Result;
+        std::size_t Position = 0;
+        while (Position < Input.size())
+        {
+            while (Position < Input.size() && IsWhitespace(Input[Position]))
+                ++Position;
+            const auto Start = Position;
+            while (Position < Input.size() && !IsWhitespace(Input[Position]))
+                ++Position;
+            if (Position != Start)
+                Result.push_back(Input.substr(Start, Position - Start));
+        }
+        return Result;
+    }
+
+    inline bool ContainsWord(std::string_view Input, std::string_view Word)
+    {
+        if (Word.empty() || std::any_of(Word.begin(), Word.end(), IsWhitespace))
+            return false;
+        std::size_t Position = 0;
+        while ((Position = Input.find(Word, Position)) != std::string_view::npos)
+        {
+            const auto End = Position + Word.size();
+            if ((Position == 0 || IsWhitespace(Input[Position - 1])) && (End == Input.size() || IsWhitespace(Input[End])))
+                return true;
+            Position = End;
+        }
+        return false;
+    }
+
+    inline bool IsVoidElement(std::string_view Tag)
+    {
+        constexpr std::string_view Tags[] = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"};
+        return std::any_of(std::begin(Tags), std::end(Tags), [&](auto Value) { return EqualsIgnoreCase(Tag, Value); });
+    }
+
+    inline bool IsRawTextElement(std::string_view Tag)
+    {
+        constexpr std::string_view Tags[] = {"script", "style", "xmp", "iframe", "noembed", "noframes", "plaintext"};
+        return std::any_of(std::begin(Tags), std::end(Tags), [&](auto Value) { return EqualsIgnoreCase(Tag, Value); });
+    }
+
     inline std::string ToLower(const std::string& Input)
     {
         std::string Result = Input;
-        std::transform(Result.begin(), Result.end(), Result.begin(), [](unsigned char c) { return std::tolower(c); });
+        std::transform(Result.begin(), Result.end(), Result.begin(), Lower);
         return Result;
     }
 
@@ -23,9 +85,8 @@ namespace HtmlParser::Utils
         return Input.substr(Start, End - Start + 1);
     }
 
-    inline std::string EscapeHtml(const std::string& Input)
+    inline void AppendEscaped(std::string& Escaped, std::string_view Input)
     {
-        std::string Escaped;
         for (char c : Input)
         {
             switch (c)
@@ -50,6 +111,12 @@ namespace HtmlParser::Utils
                 break;
             }
         }
+    }
+
+    inline std::string EscapeHtml(const std::string& Input)
+    {
+        std::string Escaped;
+        AppendEscaped(Escaped, Input);
         return Escaped;
     }
 

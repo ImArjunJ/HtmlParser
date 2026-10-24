@@ -1,164 +1,147 @@
 #include <HtmlParser/DOM.hpp>
-#include <unordered_set>
 
+#include "Tree.hpp"
 #include "Utilities.hpp"
 
 namespace HtmlParser
 {
-    DOM::DOM(const std::shared_ptr<Node>& Root) : m_Document(Root)
-    {
-    }
+    DOM::DOM() : m_Document(std::make_shared<Node>(NodeType::Document)) {}
+    DOM::DOM(const std::shared_ptr<Node>& Root) : m_Document(Root) {}
 
-    std::shared_ptr<Node> DOM::Root() const
-    {
-        return m_Document;
-    }
+    std::shared_ptr<Node> DOM::Root() const { return m_Document; }
 
     void DOM::Traverse(const std::function<void(const std::shared_ptr<Node>&)>& Visitor) const
     {
-        TraverseImpl(m_Document, Visitor);
-    }
-
-    void DOM::TraverseImpl(const std::shared_ptr<Node>& ElementNode, const std::function<void(const std::shared_ptr<Node>&)>& Visitor) const
-    {
-        Visitor(ElementNode);
-        for (const auto& child : ElementNode->Children)
+        if (!m_Document || !Visitor)
+            return;
+        // Keep pending nodes alive when the callback removes or reparents them.
+        std::vector<std::shared_ptr<Node>> Pending{m_Document};
+        while (!Pending.empty())
         {
-            TraverseImpl(child, Visitor);
+            auto Current = std::move(Pending.back());
+            Pending.pop_back();
+            if (!Current)
+                continue;
+            Visitor(Current);
+            Pending.insert(Pending.end(), Current->Children.rbegin(), Current->Children.rend());
         }
     }
 
     std::vector<std::shared_ptr<Node>> DOM::GetElementsByTagName(const std::string& TagName) const
     {
+        const auto Normalized = Utils::ToLower(TagName);
         std::vector<std::shared_ptr<Node>> Elements;
-        GetElementsByTagNameImpl(m_Document, TagName, Elements);
+        Detail::Walk(m_Document.get(), [&](const auto& Current) {
+            if (Current->Type == NodeType::Element && (Normalized == "*" || Utils::EqualsIgnoreCase(Current->Tag, Normalized)))
+                Elements.push_back(Current->shared_from_this());
+            return true;
+        });
         return Elements;
-    }
-
-    void DOM::GetElementsByTagNameImpl(const std::shared_ptr<Node>& ElementNode, const std::string& TagName, std::vector<std::shared_ptr<Node>>& Elements) const
-    {
-        if (ElementNode->Type == NodeType::Element && Utils::ToLower(ElementNode->Tag) == Utils::ToLower(TagName))
-        {
-            Elements.push_back(ElementNode);
-        }
-        for (const auto& child : ElementNode->Children)
-        {
-            GetElementsByTagNameImpl(child, TagName, Elements);
-        }
     }
 
     std::vector<std::shared_ptr<Node>> DOM::GetElementsByClassName(const std::string& ClassName) const
     {
+        const auto Classes = Utils::Words(ClassName);
         std::vector<std::shared_ptr<Node>> Elements;
-        GetElementsByClassNameImpl(m_Document, ClassName, Elements);
+        if (Classes.empty())
+            return Elements;
+        Detail::Walk(m_Document.get(), [&](const auto& Current) {
+            if (Current->Type == NodeType::Element && std::all_of(Classes.begin(), Classes.end(), [&](auto Class) {
+                const auto It = Current->Attributes.find("class");
+                return It != Current->Attributes.end() && Utils::ContainsWord(It->second, Class);
+            }))
+                Elements.push_back(Current->shared_from_this());
+            return true;
+        });
         return Elements;
-    }
-
-    void DOM::GetElementsByClassNameImpl(const std::shared_ptr<Node>& ElementNode, const std::string& ClassName, std::vector<std::shared_ptr<Node>>& Elements) const
-    {
-        if (ElementNode->Type == NodeType::Element && ElementNode->HasClass(ClassName))
-        {
-            Elements.push_back(ElementNode);
-        }
-        for (const auto& Child : ElementNode->Children)
-        {
-            GetElementsByClassNameImpl(Child, ClassName, Elements);
-        }
     }
 
     std::shared_ptr<Node> DOM::GetElementById(const std::string& Id) const
     {
-        std::shared_ptr<Node> Result = nullptr;
-        GetElementByIdImpl(m_Document, Id, Result);
+        std::shared_ptr<Node> Result;
+        Detail::Walk(m_Document.get(), [&](const auto& Current) {
+            const auto It = Current->Attributes.find("id");
+            if (Current->Type == NodeType::Element && It != Current->Attributes.end() && It->second == Id)
+                Result = Current->shared_from_this();
+            return !Result;
+        });
         return Result;
-    }
-
-    void DOM::GetElementByIdImpl(const std::shared_ptr<Node>& ElementNode, const std::string& Id, std::shared_ptr<Node>& Result) const
-    {
-        if (Result)
-            return;
-
-        if (ElementNode->Type == NodeType::Element)
-        {
-            auto it = ElementNode->Attributes.find("id");
-            if (it != ElementNode->Attributes.end() && it->second == Id)
-            {
-                Result = ElementNode;
-                return;
-            }
-        }
-        for (const auto& Child : ElementNode->Children)
-        {
-            GetElementByIdImpl(Child, Id, Result);
-            if (Result)
-                return;
-        }
     }
 
     std::string DOM::ToHtml() const
     {
-        std::string Html;
-        for (const auto& Child : m_Document->Children)
-        {
-            ToHtmlImpl(Child, Html);
-        }
-        return Html;
+        return m_Document ? Detail::Serialize(*m_Document) : std::string{};
     }
 
-    void DOM::ToHtmlImpl(const std::shared_ptr<Node>& ElementNode, std::string& Html) const
+    namespace Detail
     {
-        static const std::unordered_set<std::string> VoidElements = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"};
-
-        switch (ElementNode->Type)
+        std::string Serialize(const Node& Root)
         {
-        case NodeType::Element:
-        {
-            Html += "<" + ElementNode->Tag;
-
-            for (const auto& Attribute : ElementNode->Attributes)
+            struct Frame { const Node* Current; bool Closing; bool RawText; };
+            std::vector<Frame> Pending{{&Root, false, false}};
+            std::string Html;
+            while (!Pending.empty())
             {
-                Html += " " + Attribute.first + "=\"" + Utils::EscapeHtml(Attribute.second) + "\"";
-            }
-
-            if (VoidElements.count(Utils::ToLower(ElementNode->Tag)) > 0)
-            {
-                // Void element, no closing tag
-                Html += ">";
-            }
-            else
-            {
-                Html += ">";
-
-                // Recursively serialize child nodes
-                for (const auto& Child : ElementNode->Children)
+                const auto [Current, Closing, RawText] = Pending.back();
+                Pending.pop_back();
+                if (!Current)
+                    continue;
+                if (Closing)
                 {
-                    ToHtmlImpl(Child, Html);
+                    Html += "</";
+                    Html += Current->Tag;
+                    Html += '>';
+                    continue;
                 }
-
-                Html += "</" + ElementNode->Tag + ">";
+                switch (Current->Type)
+                {
+                case NodeType::Text:
+                    if (RawText)
+                        Html += Current->Text;
+                    else
+                        Utils::AppendEscaped(Html, Current->Text);
+                    continue;
+                case NodeType::Comment:
+                    Html += "<!--";
+                    Html += Current->Text;
+                    Html += "-->";
+                    continue;
+                case NodeType::Doctype:
+                    Html += "<!DOCTYPE ";
+                    Html += Current->Text;
+                    Html += '>';
+                    continue;
+                case NodeType::Element:
+                {
+                    Html += '<';
+                    Html += Current->Tag;
+                    std::vector<const std::pair<const std::string, std::string>*> Attributes;
+                    Attributes.reserve(Current->Attributes.size());
+                    for (const auto& Attribute : Current->Attributes)
+                        Attributes.push_back(&Attribute);
+                    std::sort(Attributes.begin(), Attributes.end(), [](auto Left, auto Right) { return Left->first < Right->first; });
+                    for (const auto* Attribute : Attributes)
+                    {
+                        Html += ' ';
+                        Html += Attribute->first;
+                        Html += "=\"";
+                        Utils::AppendEscaped(Html, Attribute->second);
+                        Html += '"';
+                    }
+                    Html += '>';
+                    if (Utils::IsVoidElement(Current->Tag))
+                        continue;
+                    Pending.push_back({Current, true, false});
+                    break;
+                }
+                case NodeType::Document:
+                    break;
+                }
+                const bool ChildRawText = Current->Type == NodeType::Element && Utils::IsRawTextElement(Current->Tag);
+                for (auto It = Current->Children.rbegin(); It != Current->Children.rend(); ++It)
+                    Pending.push_back({It->get(), false, ChildRawText});
             }
-            break;
+            return Html;
         }
-        case NodeType::Text:
-        {
-            Html += Utils::EscapeHtml(ElementNode->Text);
-            break;
-        }
-        case NodeType::Comment:
-        {
-            Html += "<!--" + ElementNode->Text + "-->";
-            break;
-        }
-        case NodeType::Doctype:
-        {
-            Html += "<!DOCTYPE " + ElementNode->Text + ">";
-            break;
-        }
-        case NodeType::Document:
-        {
-            // Should not reach here
-            break;
-        }
-        }
-    }
+    } // namespace Detail
 } // namespace HtmlParser

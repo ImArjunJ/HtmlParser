@@ -51,3 +51,21 @@ TEST(DOMToHtmlTest, SerializesDoctypeAndComments)
 
     ASSERT_EQ(DOM.ToHtml(), "<!DOCTYPE html><!--note--><html><head></head><body><p>x</p></body></html>");
 }
+
+TEST(DOMToHtmlTest, SerializesAnElementWithDeterministicAttributes)
+{
+    auto Element = std::make_shared<HtmlParser::Node>(HtmlParser::NodeType::Element);
+    Element->Tag = "p";
+    Element->SetAttribute("z", "&\"");
+    Element->SetAttribute("a", "first");
+    Element->SetTextContent("<text>");
+    EXPECT_EQ(Element->ToHtml(), "<p a=\"first\" z=\"&amp;&quot;\">&lt;text&gt;</p>");
+}
+
+TEST(DOMToHtmlTest, PreservesRawTextWhenSerializing)
+{
+    auto Element = std::make_shared<HtmlParser::Node>(HtmlParser::NodeType::Element);
+    Element->Tag = "script";
+    Element->SetTextContent("if (a < b && c > d) run();");
+    EXPECT_EQ(Element->ToHtml(), "<script>if (a < b && c > d) run();</script>");
+}
