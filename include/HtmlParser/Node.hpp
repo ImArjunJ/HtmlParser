@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -40,5 +41,9 @@ namespace HtmlParser
         std::string GetTextContent() const;
         void SetTextContent(const std::string& TextContent);
         std::string ToHtml() const;
+        std::vector<std::shared_ptr<Node>> Select(std::string_view Pattern) const;
+        std::shared_ptr<Node> SelectFirst(std::string_view Pattern) const;
+        bool Matches(std::string_view Pattern) const;
+        std::shared_ptr<Node> Closest(std::string_view Pattern);
     };
 } // namespace HtmlParser

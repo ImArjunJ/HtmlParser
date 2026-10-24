@@ -1,4 +1,5 @@
 #include <HtmlParser/DOM.hpp>
+#include <HtmlParser/Query.hpp>
 
 #include "Tree.hpp"
 #include "Utilities.hpp"
@@ -66,6 +67,16 @@ namespace HtmlParser
             return !Result;
         });
         return Result;
+    }
+
+    std::vector<std::shared_ptr<Node>> DOM::Select(std::string_view Pattern) const
+    {
+        return Query(m_Document).Select(Pattern);
+    }
+
+    std::shared_ptr<Node> DOM::SelectFirst(std::string_view Pattern) const
+    {
+        return Query(m_Document).SelectFirst(Pattern);
     }
 
     std::string DOM::ToHtml() const

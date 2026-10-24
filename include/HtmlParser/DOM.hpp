@@ -21,6 +21,8 @@ namespace HtmlParser
         std::shared_ptr<Node> GetElementById(const std::string& Id) const;
 
         std::string ToHtml() const;
+        std::vector<std::shared_ptr<Node>> Select(std::string_view Pattern) const;
+        std::shared_ptr<Node> SelectFirst(std::string_view Pattern) const;
 
     private:
         std::shared_ptr<Node> m_Document;

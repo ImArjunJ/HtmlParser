@@ -1,4 +1,5 @@
 #include <HtmlParser/Node.hpp>
+#include <HtmlParser/Query.hpp>
 
 #include <algorithm>
 #include <stdexcept>
@@ -163,6 +164,30 @@ namespace HtmlParser
     {
         const auto Position = Attributes.find("class");
         return Position != Attributes.end() && Utils::ContainsWord(Position->second, ClassName);
+    }
+
+    std::vector<std::shared_ptr<Node>> Node::Select(std::string_view Pattern) const
+    {
+        return Query(std::const_pointer_cast<Node>(shared_from_this())).Select(Pattern);
+    }
+
+    std::shared_ptr<Node> Node::SelectFirst(std::string_view Pattern) const
+    {
+        return Query(std::const_pointer_cast<Node>(shared_from_this())).SelectFirst(Pattern);
+    }
+
+    bool Node::Matches(std::string_view Pattern) const
+    {
+        return Selector(Pattern).Matches(*this);
+    }
+
+    std::shared_ptr<Node> Node::Closest(std::string_view Pattern)
+    {
+        const Selector Compiled(Pattern);
+        for (auto Current = shared_from_this(); Current; Current = Current->Parent.lock())
+            if (Compiled.Matches(*Current, this))
+                return Current;
+        return nullptr;
     }
 
     std::string Node::ToHtml() const
