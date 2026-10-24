@@ -104,25 +104,33 @@ namespace HtmlParser
         }
         else
         {
-            // A literal '<' must make progress even when it does not open a tag.
-            ++m_Position;
-            while (m_Position < Source.size())
+            auto Search = m_Position;
+            for (;;)
             {
-                if (Source[m_Position] == '<')
+                const auto Next = Source.find('<', Search);
+                if (Next == std::string_view::npos)
                 {
-                    auto Name = m_Position + 1;
-                    if (Name < Source.size() && (Source[Name] == '!' || Source[Name] == '?'))
-                        break;
-                    if (Name < Source.size() && Source[Name] == '/')
-                        ++Name;
-                    if (Name < Source.size() && IsAlpha(Source[Name]))
-                        break;
+                    m_Position = Source.size();
+                    break;
                 }
-                ++m_Position;
+                auto Name = Next + 1;
+                if (Name < Source.size() && (Source[Name] == '!' || Source[Name] == '?'))
+                {
+                    m_Position = Next;
+                    break;
+                }
+                if (Name < Source.size() && Source[Name] == '/')
+                    ++Name;
+                if (Name < Source.size() && IsAlpha(Source[Name]))
+                {
+                    m_Position = Next;
+                    break;
+                }
+                Search = Next + 1;
             }
         }
         auto Text = Utils::NormalizeText(Source.substr(Start, m_Position - Start));
-        return {TokenType::Character, Decode ? Utils::DecodeHtml(Text) : std::move(Text), {}, false, Start, m_Position};
+        return {TokenType::Character, Decode && Text.find('&') != std::string::npos ? Utils::DecodeHtml(Text) : std::move(Text), {}, false, Start, m_Position};
     }
 
     Token Tokenizer::ReadTag()

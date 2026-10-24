@@ -22,6 +22,7 @@ add_library(HtmlParser
     src/Parser.cpp
     src/Query.cpp
     src/Tokenizer.cpp
+    src/Text.cpp
 )
 add_library(HtmlParser::HtmlParser ALIAS HtmlParser)
 target_compile_features(HtmlParser PUBLIC cxx_std_20)
