@@ -122,19 +122,11 @@ namespace HtmlParser
         if (Type == NodeType::Text || Type == NodeType::Comment || Type == NodeType::Doctype)
             return Text;
         std::string Result;
-        std::vector<const Node*> Pending{this};
-        while (!Pending.empty())
-        {
-            const auto* Current = Pending.back();
-            Pending.pop_back();
-            if (!Current)
-                continue;
+        Detail::Walk(this, [&](const Node* Current) {
             if (Current->Type == NodeType::Text)
                 Result += Current->Text;
-            else if (Current->Type == NodeType::Element || Current->Type == NodeType::Document)
-                for (auto It = Current->Children.rbegin(); It != Current->Children.rend(); ++It)
-                    Pending.push_back(It->get());
-        }
+            return true;
+        });
         return Result;
     }
 

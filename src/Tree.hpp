@@ -7,22 +7,29 @@
 
 namespace HtmlParser::Detail
 {
-    template <typename Visitor>
-    void Walk(Node* Root, Visitor&& Visit)
+    // Read-only traversal uses borrowed pointers and O(depth) workspace.
+    template <typename NodePointer, typename Visitor>
+    void Walk(NodePointer Root, Visitor&& Visit)
     {
-        if (!Root)
+        if (!Root || !Visit(Root))
             return;
-        std::vector<Node*> Pending{Root};
-        while (!Pending.empty())
+        struct Frame { NodePointer Current; std::size_t NextChild; };
+        std::vector<Frame> Path{{Root, 0}};
+        while (!Path.empty())
         {
-            auto* Current = Pending.back();
-            Pending.pop_back();
-            if (!Current)
+            auto& Frame = Path.back();
+            if (Frame.NextChild == Frame.Current->Children.size())
+            {
+                Path.pop_back();
                 continue;
-            if (!Visit(Current))
+            }
+            NodePointer Child = Frame.Current->Children[Frame.NextChild++].get();
+            if (!Child)
+                continue;
+            if (!Visit(Child))
                 return;
-            for (auto It = Current->Children.rbegin(); It != Current->Children.rend(); ++It)
-                Pending.push_back(It->get());
+            if (!Child->Children.empty())
+                Path.push_back({Child, 0});
         }
     }
 
