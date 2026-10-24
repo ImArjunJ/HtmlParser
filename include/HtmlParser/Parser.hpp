@@ -1,60 +1,43 @@
 #pragma once
-#include <string>
+
+#include <cstddef>
+#include <string_view>
+#include <vector>
 
 #include "DOM.hpp"
 #include "Tokenizer.hpp"
 
 namespace HtmlParser
 {
+    struct ParseOptions
+    {
+        bool Strict = false;
+        std::size_t MaxDepth = 4096;
+        std::size_t MaxNodes = 1000000;
+        std::size_t MaxErrors = 100;
+    };
+
+    struct ParseResult
+    {
+        DOM Document;
+        std::vector<ParseError> Errors;
+    };
+
     class Parser
     {
     public:
-        Parser();
+        Parser() = default;
+        explicit Parser(ParseOptions Options) : m_Options(Options) {}
 
-        DOM Parse(const std::string& Input);
+        DOM Parse(std::string_view Input) const;
+        DOM ParseFragment(std::string_view Input, std::string_view ContextTag = "body") const;
+        ParseResult ParseWithDiagnostics(std::string_view Input) const;
+        ParseResult ParseFragmentWithDiagnostics(std::string_view Input, std::string_view ContextTag = "body") const;
 
-        void SetStrict(bool Strict)
-        {
-            m_IsStrict = Strict;
-        }
+        void SetStrict(bool Strict) noexcept { m_Options.Strict = Strict; }
+        const ParseOptions& Options() const noexcept { return m_Options; }
 
     private:
-        void InsertionModeInitial(const Token& Token);
-        void InsertionModeBeforeHtml(const Token& Token);
-        void InsertionModeBeforeHead(const Token& Token);
-        void InsertionModeInHead(const Token& Token);
-        void InsertionModeAfterHead(const Token& Token);
-        void InsertionModeInBody(const Token& Token);
-
-        void HandleError(const std::string& Message);
-
-        std::shared_ptr<Node> CurrentNode();
-
-        void InsertDoctype(const Token& Token);
-        void InsertComment(const Token& Token);
-        void InsertElement(const Token& Token);
-        void InsertCharacter(const Token& Token);
-        void CloseElement(const Token& Token);
-        bool HasOpenNonImpliedElements() const;
-        bool IsVoidElement(const std::string& TagName) const;
-
-        std::shared_ptr<Node> Document;
-        std::vector<std::shared_ptr<Node>> OpenElements;
-
-        enum class InsertionMode
-        {
-            Initial,
-            BeforeHtml,
-            BeforeHead,
-            InHead,
-            AfterHead,
-            InBody,
-            Text,
-        };
-
-        InsertionMode InsertionMode;
-
-        bool m_IsStrict = false;
-        bool m_IsFragment = false;
+        ParseOptions m_Options;
     };
 } // namespace HtmlParser
