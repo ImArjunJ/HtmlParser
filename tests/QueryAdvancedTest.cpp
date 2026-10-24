@@ -203,3 +203,26 @@ TEST(QueryAdvancedTest, BacktracksAcrossAncestorAndSiblingCombinators)
     EXPECT_EQ(Document.Select("i ~ i + p").size(), 1);
     EXPECT_EQ(Document.Select("i + p")[0]->GetAttribute("id"), "y");
 }
+
+TEST(QueryAdvancedTest, StructuralSelectorsWorkOnDetachedRoots)
+{
+    auto Root = std::make_shared<HtmlParser::Node>(HtmlParser::NodeType::Element);
+    Root->Tag = "div";
+    auto Child = std::make_shared<HtmlParser::Node>(HtmlParser::NodeType::Element);
+    Child->Tag = "p";
+    Root->AppendChild(Child);
+    auto Matches = Root->Select(":first-child");
+    ASSERT_EQ(Matches.size(), 2);
+    EXPECT_EQ(Matches[0], Root);
+    EXPECT_EQ(Matches[1], Child);
+}
+
+TEST(QueryAdvancedTest, HandlesAmbiguousDeepSelectorChains)
+{
+    std::string Html;
+    for (int Index = 0; Index < 100; ++Index)
+        Html += "<div>";
+    Html += "<p>x</p>";
+    auto Document = HtmlParser::Parser().Parse(Html);
+    EXPECT_TRUE(Document.Select(".missing div div div div div div div div p").empty());
+}

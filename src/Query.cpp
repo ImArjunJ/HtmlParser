@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include "Tree.hpp"
@@ -351,7 +352,7 @@ namespace HtmlParser
             const Siblings& Family(const Node& Element)
             {
                 auto Parent = Element.Parent.lock();
-                const auto Key = Parent ? Parent.get() : &Element;
+                const auto Key = Parent ? Parent.get() : nullptr;
                 auto [Entry, Inserted] = Cache.try_emplace(Key);
                 if (Inserted)
                 {
@@ -467,12 +468,44 @@ namespace HtmlParser
                 return false;
             if (Pattern.Steps.size() == 1)
                 return true;
-            struct State { const Node* Element; std::size_t Index; };
-            std::vector<State> Pending{{&Element, Pattern.Steps.size() - 1}};
+            enum class Mode { Filter, Ancestors, Siblings };
+            struct State
+            {
+                const Node* Element;
+                std::size_t Index;
+                Mode Action;
+                bool operator==(const State&) const = default;
+            };
+            struct Hash
+            {
+                std::size_t operator()(const State& Value) const
+                {
+                    return std::hash<const Node*>{}(Value.Element) ^ (Value.Index * 3 + static_cast<std::size_t>(Value.Action));
+                }
+            };
+            std::vector<State> Pending{{&Element, Pattern.Steps.size() - 1, Mode::Filter}};
+            std::unordered_set<State, Hash> Seen;
+            auto Previous = [&](const Node& Current) -> const Node* {
+                const auto& Family = Context.Family(Current);
+                const auto Found = Family.Positions.find(&Current);
+                return Found != Family.Positions.end() && Found->second ? Family.Elements[Found->second - 1] : nullptr;
+            };
             while (!Pending.empty())
             {
-                const auto [Current, Index] = Pending.back();
+                const auto State = Pending.back();
+                const auto [Current, Index, Action] = State;
                 Pending.pop_back();
+                // Ambiguous chains can reach the same state through many different paths.
+                if (Pattern.Steps.size() > 2 && !Seen.insert(State).second)
+                    continue;
+                if (Action != Mode::Filter)
+                {
+                    const auto* Next = Action == Mode::Ancestors ? Current->Parent.lock().get() : Previous(*Current);
+                    if (Next && Current != Context.Boundary)
+                        Pending.push_back({Next, Index, Action});
+                    Pending.push_back({Current, Index, Mode::Filter});
+                    continue;
+                }
                 if (!MatchFilter(*Current, Pattern.Steps[Index].Filter, Context))
                     continue;
                 if (!Index)
@@ -482,27 +515,11 @@ namespace HtmlParser
                 const auto Relation = Pattern.Steps[Index].Relation;
                 if (Relation == '>' || Relation == ' ')
                 {
-                    auto Parent = Current->Parent.lock();
-                    while (Parent)
-                    {
-                        Pending.push_back({Parent.get(), Index - 1});
-                        if (Relation == '>' || Parent.get() == Context.Boundary)
-                            break;
-                        Parent = Parent->Parent.lock();
-                    }
+                    if (auto Parent = Current->Parent.lock())
+                        Pending.push_back({Parent.get(), Index - 1, Relation == '>' ? Mode::Filter : Mode::Ancestors});
                 }
-                else
-                {
-                    const auto& Family = Context.Family(*Current);
-                    auto Found = Family.Positions.find(Current);
-                    if (Found != Family.Positions.end())
-                        for (auto Position = Found->second; Position > 0; --Position)
-                        {
-                            Pending.push_back({Family.Elements[Position - 1], Index - 1});
-                            if (Relation == '+')
-                                break;
-                        }
-                }
+                else if (const auto* Sibling = Previous(*Current))
+                    Pending.push_back({Sibling, Index - 1, Relation == '+' ? Mode::Filter : Mode::Siblings});
             }
             return false;
         }
